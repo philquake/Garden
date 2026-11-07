@@ -8,3 +8,4 @@ build/
 local.properties
 .gradle/
 Pods/
+.flutter-plugins-dependencies
