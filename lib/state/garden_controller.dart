@@ -5,6 +5,7 @@ import '../domain/actions.dart' as actions;
 import '../domain/day.dart';
 import '../domain/habit.dart';
 import '../domain/neglect.dart';
+import '../domain/reminders.dart';
 import '../domain/rules.dart';
 import '../domain/schedule.dart';
 
@@ -28,12 +29,15 @@ class GardenController extends Notifier<List<Habit>> {
   @override
   List<Habit> build() {
     final today = _today;
-    return [for (final h in _store.load()) advance(h, today)];
+    return [
+      for (final h in _store.load()) syncIgnoredReminders(advance(h, today)),
+    ];
   }
 
   Future<void> _set(List<Habit> habits) async {
-    state = habits;
-    await _store.save(habits);
+    final synced = [for (final h in habits) syncIgnoredReminders(h)];
+    state = synced;
+    await _store.save(synced);
   }
 
   Future<void> _update(String id, Habit Function(Habit h, int today) f) {
@@ -85,7 +89,9 @@ class GardenController extends Notifier<List<Habit>> {
 
   Future<void> refresh() async {
     final today = _today;
-    final next = [for (final h in state) advance(h, today)];
+    final next = [
+      for (final h in state) syncIgnoredReminders(advance(h, today)),
+    ];
     var changed = false;
     for (var i = 0; i < next.length; i++) {
       if (!identical(next[i], state[i])) changed = true;

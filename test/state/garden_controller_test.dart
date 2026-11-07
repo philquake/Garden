@@ -80,6 +80,40 @@ void main() {
     expect(h.wateredDays, {20000});
   });
 
+  test(
+    'ignoredReminders tracks missed days; no-change refresh saves nothing',
+    () async {
+      var day = 20000;
+      final c = await make(prefs, () => day);
+      final g = c.read(gardenProvider.notifier);
+      await g.add(
+        Habit.newSeed(
+          id: 'a',
+          name: 'a',
+          flowerId: 'tulip',
+          schedule: const Schedule.daily(),
+          today: day,
+          reminderMinutes: 540,
+        ),
+      );
+      day = 20005;
+      await g.refresh();
+      final h = c.read(gardenProvider).single;
+      expect(h.missedSinceWater, greaterThan(0));
+      expect(h.ignoredReminders, h.missedSinceWater);
+      expect(
+        HabitStore(prefs).load().single.ignoredReminders,
+        h.ignoredReminders,
+      );
+      // Remove the stored value: a no-op refresh must not write it back.
+      await prefs.clear();
+      await g.refresh();
+      expect(prefs.getKeys(), isEmpty);
+      await g.editDetails('a', reminderMinutes: -1);
+      expect(c.read(gardenProvider).single.ignoredReminders, 0);
+    },
+  );
+
   test('editDetails changes name, flower, reminder; validates', () async {
     final c = await make(prefs, () => 20000);
     final g = c.read(gardenProvider.notifier);
