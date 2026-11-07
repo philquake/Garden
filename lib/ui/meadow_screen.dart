@@ -6,10 +6,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../art/art_pack.dart';
 import '../domain/growth.dart';
 import '../domain/habit.dart';
+import '../domain/messages.dart';
 import '../domain/rules.dart';
 import '../state/art_provider.dart';
+import '../state/banner_provider.dart';
 import '../state/garden_controller.dart';
 import 'meadow_painter.dart';
+import 'theme.dart';
 
 class MeadowScreen extends ConsumerStatefulWidget {
   const MeadowScreen({
@@ -84,6 +87,7 @@ class _MeadowScreenState extends ConsumerState<MeadowScreen>
   Widget build(BuildContext context) {
     final habits = ref.watch(gardenProvider);
     final art = ref.watch(artPackProvider);
+    final dismissed = ref.watch(bannerDismissedProvider);
     final width = max(
       MediaQuery.sizeOf(context).width,
       150.0 * (habits.length + 1),
@@ -129,6 +133,18 @@ class _MeadowScreenState extends ConsumerState<MeadowScreen>
                 ),
               ),
             ),
+          if (!dismissed && isStruggling(habits))
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: _banner(habits),
+                ),
+              ),
+            ),
           Positioned(
             left: 0,
             right: 0,
@@ -140,6 +156,56 @@ class _MeadowScreenState extends ConsumerState<MeadowScreen>
                   onPressed: () => _plant(habits.length),
                   child: const Text('Plant a seed'),
                 ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _banner(List<Habit> habits) {
+    final choice = bannerChoice(habits, ref.read(todayProvider)());
+    final text = encouragement(
+      choice.tone,
+      ref.read(todayProvider)(),
+      flower: choice.flower,
+    );
+    final id = choice.habitId;
+    Widget message = Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 4, 12),
+      child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
+    );
+    if (id != null) {
+      message = Semantics(
+        label: text,
+        button: true,
+        onTap: () => widget.onOpenHabit(id),
+        excludeSemantics: true,
+        child: InkWell(onTap: () => widget.onOpenHabit(id), child: message),
+      );
+    }
+    return Material(
+      key: const Key('encouragement-banner'),
+      color: skyMist,
+      elevation: 1,
+      borderRadius: BorderRadius.circular(20),
+      clipBehavior: Clip.antiAlias,
+      child: Row(
+        children: [
+          Expanded(child: message),
+          Semantics(
+            label: 'Dismiss message',
+            button: true,
+            onTap: () => ref.read(bannerDismissedProvider.notifier).dismiss(),
+            excludeSemantics: true,
+            child: InkWell(
+              key: const Key('dismiss-banner'),
+              onTap: () => ref.read(bannerDismissedProvider.notifier).dismiss(),
+              child: const SizedBox(
+                width: 48,
+                height: 48,
+                child: Icon(Icons.close, size: 20, color: inkBrown),
               ),
             ),
           ),
