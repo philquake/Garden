@@ -74,6 +74,8 @@ class ArtPack {
     final first = _frames.keys.isEmpty ? null : _frames.keys.first;
     final found =
         _lookup(flowerId, stage, health) ??
+        // Its own harsher frames still beat another flower's.
+        _lookup(flowerId, stage, health, harsher: true) ??
         (first == null ? null : _lookup(first, stage, health)) ??
         _anyFrames(flowerId) ??
         (first == null ? null : _anyFrames(first));
@@ -85,7 +87,12 @@ class ArtPack {
 
   static final ArtPack _fallback = ArtPack.placeholder();
 
-  List<String>? _lookup(String flower, int stage, FlowerHealth health) {
+  List<String>? _lookup(
+    String flower,
+    int stage,
+    FlowerHealth health, {
+    bool harsher = false,
+  }) {
     final byStage = _frames[flower];
     if (byStage == null) return null;
     final s = stage.clamp(0, _stages - 1);
@@ -93,8 +100,13 @@ class ArtPack {
       for (var i = s; i >= 0; i--) i,
       for (var i = s + 1; i < _stages; i++) i,
     ];
+    final healths = [
+      for (var i = health.index; i >= 0; i--) i,
+      if (harsher)
+        for (var i = health.index + 1; i < FlowerHealth.values.length; i++) i,
+    ];
     for (final st in order) {
-      for (var i = health.index; i >= 0; i--) {
+      for (final i in healths) {
         final f = byStage[st]?[FlowerHealth.values[i]];
         if (f != null && f.isNotEmpty) return f;
       }

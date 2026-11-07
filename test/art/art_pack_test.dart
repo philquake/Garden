@@ -45,6 +45,23 @@ void main() {
     expect(p.framesFor('rose', 0, FlowerHealth.healthy), ['r2h_a', 'r2h_b']);
   });
 
+  test('a flower with only harsher frames keeps its own frames', () {
+    final p = ArtPack.fromManifest({
+      'rose': {
+        '2': {
+          'healthy': ['rose'],
+        },
+      },
+      'iris': {
+        '2': {
+          'petalLoss': ['iris-petal'],
+        },
+      },
+    });
+    expect(p.framesFor('iris', 2, FlowerHealth.healthy), ['iris-petal']);
+    expect(p.framesFor('rose', 2, FlowerHealth.wilting), ['rose']);
+  });
+
   test('unknown flower uses the first flower and never throws', () {
     final p = ArtPack.fromManifest(manifest);
     expect(p.framesFor('nope', 2, FlowerHealth.healthy), ['r2h_a', 'r2h_b']);
