@@ -67,6 +67,29 @@ void main() {
     expect(p.getString('habits_corrupt'), raw);
   });
 
+  test(
+    'a garden saved before reminderBaselineMissed loads and round-trips',
+    () async {
+      final old = h('a').toJson()..remove('reminderBaselineMissed');
+      final (s, _) = await open({
+        'habits': jsonEncode([old]),
+      });
+      final loaded = s.load();
+      expect(loaded.single.reminderBaselineMissed, 0);
+      await s.save(loaded);
+      expect(s.load().single.toJson(), {...old, 'reminderBaselineMissed': 0});
+    },
+  );
+
+  test('negative reminderBaselineMissed is corrupt', () async {
+    final bad = h('a').toJson()..['reminderBaselineMissed'] = -1;
+    final (s, p) = await open({
+      'habits': jsonEncode([bad]),
+    });
+    expect(s.load(), isEmpty);
+    expect(p.containsKey('habits_corrupt'), isTrue);
+  });
+
   test('duplicate ids are corrupt', () async {
     final (s, _) = await open({
       'habits': jsonEncode([h('a').toJson(), h('a').toJson()]),

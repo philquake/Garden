@@ -75,10 +75,15 @@ class GardenController extends Notifier<List<Habit>> {
     }
     return _update(
       id,
-      (h, _) => h.copyWith(
+      (h, t) => h.copyWith(
         name: trimmed,
         flowerId: flowerId,
         reminderMinutes: reminderMinutes,
+        // A new or changed reminder starts its ignored count afresh.
+        reminderBaselineMissed:
+            reminderMinutes != null && reminderMinutes != h.reminderMinutes
+            ? advance(h, t).missedSinceWater
+            : null,
       ),
     );
   }

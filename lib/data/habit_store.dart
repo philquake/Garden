@@ -13,7 +13,8 @@ bool habitLooksValid(Habit h) =>
     h.declineStep <= 3 &&
     h.evaluatedDay >= h.plantedDay &&
     h.plantingWaterings >= 0 &&
-    h.missedSinceWater >= 0;
+    h.missedSinceWater >= 0 &&
+    h.reminderBaselineMissed >= 0;
 
 class HabitStore {
   HabitStore(this._prefs);

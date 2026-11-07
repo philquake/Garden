@@ -35,4 +35,19 @@ void main() {
     final b = _h();
     expect(identical(syncIgnoredReminders(b), b), isTrue);
   });
+
+  test('misses up to the baseline do not count; no reminder clears it', () {
+    final h = _h(reminder: 540, missed: 5).copyWith(reminderBaselineMissed: 4);
+    expect(syncIgnoredReminders(h).ignoredReminders, 1);
+    final under = _h(
+      reminder: 540,
+      missed: 2,
+      ignored: 1,
+    ).copyWith(reminderBaselineMissed: 4);
+    expect(syncIgnoredReminders(under).ignoredReminders, 0);
+    final off = syncIgnoredReminders(
+      _h(missed: 5).copyWith(reminderBaselineMissed: 4),
+    );
+    expect([off.ignoredReminders, off.reminderBaselineMissed], [0, 0]);
+  });
 }

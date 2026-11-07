@@ -18,6 +18,7 @@ Habit water(Habit h, int today, {int? forDay}) {
     wateredDays: {...a.wateredDays, day},
     plantingWaterings: a.plantingWaterings + 1,
     missedSinceWater: 0,
+    reminderBaselineMissed: 0,
     declineStep: max(0, a.declineStep - 1),
     lastWaterDay: max(a.lastWaterDay, day),
   );
@@ -42,6 +43,7 @@ Habit freshStart(Habit h, int today) {
   return a.copyWith(
     declineStep: 0,
     missedSinceWater: 0,
+    reminderBaselineMissed: 0,
     lastWaterDay: max(a.lastWaterDay, today),
     evaluatedDay: max(a.evaluatedDay, today),
     lost: false,
@@ -56,6 +58,7 @@ Habit replant(Habit h, int today) {
     plantingWaterings: 0,
     declineStep: 0,
     missedSinceWater: 0,
+    reminderBaselineMissed: 0,
     lastWaterDay: max(a.lastWaterDay, today),
     evaluatedDay: max(a.evaluatedDay, today),
     lost: false,

@@ -20,6 +20,7 @@ class Habit {
     required this.plantingNumber,
     required this.reminderMinutes,
     required this.ignoredReminders,
+    this.reminderBaselineMissed = 0,
   }) : wateredDays = Set.unmodifiable(wateredDays);
 
   /// A freshly planted seed; the planting day counts as a grace day.
@@ -68,6 +69,10 @@ class Habit {
   final int reminderMinutes;
   final int ignoredReminders;
 
+  /// missedSinceWater when the reminder was last set or changed; misses up to
+  /// here do not count as ignored reminders.
+  final int reminderBaselineMissed;
+
   Habit copyWith({
     String? id,
     String? name,
@@ -84,6 +89,7 @@ class Habit {
     int? plantingNumber,
     int? reminderMinutes,
     int? ignoredReminders,
+    int? reminderBaselineMissed,
   }) => Habit(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -100,6 +106,8 @@ class Habit {
     plantingNumber: plantingNumber ?? this.plantingNumber,
     reminderMinutes: reminderMinutes ?? this.reminderMinutes,
     ignoredReminders: ignoredReminders ?? this.ignoredReminders,
+    reminderBaselineMissed:
+        reminderBaselineMissed ?? this.reminderBaselineMissed,
   );
 
   Map<String, dynamic> toJson() => {
@@ -118,6 +126,7 @@ class Habit {
     'plantingNumber': plantingNumber,
     'reminderMinutes': reminderMinutes,
     'ignoredReminders': ignoredReminders,
+    'reminderBaselineMissed': reminderBaselineMissed,
   };
 
   factory Habit.fromJson(Map<String, dynamic> j) => Habit(
@@ -138,5 +147,7 @@ class Habit {
     plantingNumber: j['plantingNumber'] as int,
     reminderMinutes: j['reminderMinutes'] as int,
     ignoredReminders: j['ignoredReminders'] as int,
+    // Absent in gardens saved before this field existed.
+    reminderBaselineMissed: j['reminderBaselineMissed'] as int? ?? 0,
   );
 }
