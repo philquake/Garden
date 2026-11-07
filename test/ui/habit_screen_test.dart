@@ -271,7 +271,6 @@ void main() {
     tester,
   ) async {
     final handle = tester.ensureSemantics();
-    addTearDown(handle.dispose);
     await _pump(tester, [_seed(plantedAgo: 20)]);
     expect(find.bySemanticsLabel('Water Read'), findsOneWidget);
     // Day 19999 is a Thursday, 3 October 2024.
@@ -279,6 +278,7 @@ void main() {
       find.bySemanticsLabel('Mark Thursday, 3 October as watered'),
       findsOneWidget,
     );
+    handle.dispose();
   });
 
   testWidgets('edit button calls onEdit', (tester) async {
