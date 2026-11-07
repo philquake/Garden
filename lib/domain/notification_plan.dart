@@ -89,16 +89,20 @@ List<PlannedNotification> planNotifications(
 }) {
   final out = <PlannedNotification>[];
   final end = today + horizonDays;
+  // At most 3 - ignored reminders per habit, so an unopened app goes quiet
+  // after three; the next replan (on open or watering) restores the set.
+  final left = {for (final h in habits) h.id: 3 - h.ignoredReminders};
 
   // Reminders, bucketed per day as (minutes, habit).
   for (var d = today; d < end; d++) {
     final due = <(int, Habit)>[];
     for (final h in habits) {
-      if (h.lost || h.reminderMinutes < 0 || h.ignoredReminders >= 3) continue;
+      if (h.lost || h.reminderMinutes < 0 || left[h.id]! <= 0) continue;
       if (d < h.plantedDay || h.wateredDays.contains(d)) continue;
       if (!_reminderDay(h.schedule, d)) continue;
       final m = _quiet(h.reminderMinutes);
       if (d == today && m <= nowMinutes) continue;
+      left[h.id] = left[h.id]! - 1;
       due.add((m, h));
     }
     due.sort((a, b) {
@@ -137,13 +141,15 @@ List<PlannedNotification> planNotifications(
     }
   }
 
-  // Warnings: a safety net, independent of reminder pause and the daily limit.
+  // Warnings: a safety net, independent of reminder pause, the daily limit
+  // and horizonDays, so all three are scheduled right after a watering.
+  final warnEnd = today + Rules.lostDays;
   for (final h in habits) {
     if (h.lost) continue;
     final m = _quiet(h.reminderMinutes >= 0 ? h.reminderMinutes : 9 * 60);
     for (final w in Rules.warnDays) {
       final d = h.lastWaterDay + w;
-      if (d < today || d >= end) continue;
+      if (d < today || d >= warnEnd) continue;
       if (d == today && m <= nowMinutes) continue;
       out.add(
         PlannedNotification(

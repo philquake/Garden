@@ -39,10 +39,10 @@ void main() {
     expect(planNotifications([], today), isEmpty);
   });
 
-  test('daily: one reminder per day for 14 days at its time', () {
-    final p = planNotifications([h('a', reminder: 600)], today);
-    expect(p.length, 14);
-    expect(p.map((n) => n.dayIndex), [for (var i = 0; i < 14; i++) today + i]);
+  test('daily: one reminder a day at its time, three at most', () {
+    final p = reminders(planNotifications([h('a', reminder: 600)], today));
+    expect(p.length, 3);
+    expect(p.map((n) => n.dayIndex), [today, today + 1, today + 2]);
     expect(p.every((n) => n.minutes == 600 && !n.isWarning), isTrue);
     expect(p.first.title, 'Time for a');
     expect(p.first.body, 'Your tulip would love a drink.');
@@ -50,17 +50,25 @@ void main() {
   });
 
   test('weekday only on its weekday', () {
-    final p = planNotifications([h('a', schedule: Schedule.weekday(3))], today);
+    final p = reminders(
+      planNotifications([h('a', schedule: Schedule.weekday(3))], today),
+    );
     expect(p.length, 2);
     expect(p.every((n) => weekdayOf(n.dayIndex) == 3), isTrue);
   });
 
   test('timesPerWeek lands on expected weekdays', () {
+    // One day at a time, so the three-reminder limit never cuts the week.
     Set<int> days(int n) => {
-      for (final x in planNotifications([
-        h('a', schedule: Schedule.timesPerWeek(n)),
-      ], today))
-        weekdayOf(x.dayIndex),
+      for (var d = today; d < today + 7; d++)
+        for (final x in reminders(
+          planNotifications(
+            [h('a', schedule: Schedule.timesPerWeek(n))],
+            d,
+            horizonDays: 1,
+          ),
+        ))
+          weekdayOf(x.dayIndex),
     };
     expect(days(3), {1, 3, 5});
     expect(days(1), {1});
@@ -68,17 +76,19 @@ void main() {
   });
 
   test('watered today: none today, still tomorrow', () {
-    final p = planNotifications([
-      h('a', watered: {today}),
-    ], today);
+    final p = reminders(
+      planNotifications([
+        h('a', watered: {today}),
+      ], today),
+    );
     expect(p.first.dayIndex, today + 1);
-    expect(p.length, 13);
+    expect(p.length, 3);
   });
 
   test('days before plantedDay skipped', () {
-    final p = planNotifications([h('a', planted: today + 5)], today);
+    final p = reminders(planNotifications([h('a', planted: today + 5)], today));
     expect(p.first.dayIndex, today + 5);
-    expect(p.length, 9);
+    expect(p.length, 3);
   });
 
   test('nowMinutes skips today earlier-or-equal reminder', () {
@@ -108,7 +118,7 @@ void main() {
     final hs = [
       for (final id in ['d', 'c', 'b', 'a']) h(id),
     ];
-    final p = planNotifications(hs, today, horizonDays: 1);
+    final p = reminders(planNotifications(hs, today, horizonDays: 1));
     expect(p.length, 2);
     final first = p.firstWhere((n) => !n.isGrouped);
     expect(first.habitId, 'a');
@@ -121,24 +131,31 @@ void main() {
   });
 
   test('grouped sits at the second reminder time', () {
-    final p = planNotifications(
-      [h('a', reminder: 500), h('b', reminder: 700), h('c', reminder: 900)],
-      today,
-      horizonDays: 1,
+    final p = reminders(
+      planNotifications(
+        [h('a', reminder: 500), h('b', reminder: 700), h('c', reminder: 900)],
+        today,
+        horizonDays: 1,
+      ),
     );
     expect(p.map((n) => n.minutes), [500, 700]);
     expect(p[1].isGrouped, isTrue);
   });
 
   test('two habits give two individual reminders', () {
-    final p = planNotifications([h('a'), h('b')], today, horizonDays: 1);
+    final p = reminders(
+      planNotifications([h('a'), h('b')], today, horizonDays: 1),
+    );
     expect(p.length, 2);
     expect(p.any((n) => n.isGrouped), isFalse);
   });
 
   test('paused, unset and lost reminders; warnings survive pause', () {
     expect(reminders(planNotifications([h('a', ignored: 3)], today)), isEmpty);
-    expect(planNotifications([h('a', reminder: -1)], today), isEmpty);
+    expect(
+      reminders(planNotifications([h('a', reminder: -1)], today)),
+      isEmpty,
+    );
     expect(
       planNotifications([h('a', lost: true, lastWater: today - 5)], today),
       isEmpty,
@@ -178,13 +195,39 @@ void main() {
 
   test('warning day keeps 2 reminders plus the warning', () {
     final p = planNotifications(
-      [h('a', lastWater: today - 10), h('b')],
+      [h('a', lastWater: today - 12), h('b')],
       today,
       horizonDays: 6,
     );
-    final day = p.where((n) => n.dayIndex == today + 4).toList();
+    final day = p.where((n) => n.dayIndex == today + 2).toList();
     expect(day.length, 3);
     expect(day.where((n) => n.isWarning).length, 1);
+  });
+
+  test('warnings use their own 30-day window, not horizonDays', () {
+    final p = planNotifications([h('a', reminder: -1)], today);
+    expect(p.map((n) => n.dayIndex), [today + 14, today + 21, today + 27]);
+    expect(p.every((n) => n.isWarning), isTrue);
+  });
+
+  test('ignored reminders shrink the remaining set; warnings unaffected', () {
+    final p = planNotifications([h('a', ignored: 2)], today);
+    expect(reminders(p).map((n) => n.dayIndex), [today]);
+    expect(p.where((n) => n.isWarning).length, 3);
+  });
+
+  test('limit holds per habit while grouping and 2-a-day still apply', () {
+    final hs = [
+      for (final id in ['a', 'b', 'c']) h(id),
+      h('d', ignored: 1),
+    ];
+    final p = reminders(planNotifications(hs, today));
+    for (var d = today; d < today + 14; d++) {
+      expect(p.where((n) => n.dayIndex == d).length, lessThanOrEqualTo(2));
+    }
+    // d drops out after two days; a, b and c after three.
+    expect(p.map((n) => n.dayIndex).toSet(), {today, today + 1, today + 2});
+    expect(p.where((n) => n.isGrouped).length, 3);
   });
 
   test('ids stable, distinct; sorted', () {

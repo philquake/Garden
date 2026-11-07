@@ -104,6 +104,20 @@ void main() {
     );
   });
 
+  test('watering then replanning schedules all three loss warnings', () async {
+    final fake = FakeScheduler();
+    final c = await _container(fake, habits: [_habit('a')]);
+    c.read(notificationSyncProvider);
+    await c.read(gardenProvider.notifier).water('a');
+    await Future<void>.delayed(Duration.zero);
+    final warnings = fake.scheduled.last.where((i) => i.n.isWarning);
+    expect(warnings.map((i) => i.n.dayIndex), [
+      _today + 14,
+      _today + 21,
+      _today + 27,
+    ]);
+  });
+
   test('overlapping replans never run concurrently', () async {
     final fake = FakeScheduler()..hold = Completer<void>();
     final c = await _container(fake, habits: [_habit('a')]);
