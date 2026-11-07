@@ -143,11 +143,60 @@ class _HabitFormState extends ConsumerState<HabitForm> {
     if (!mounted) return;
     setState(() => _saving = false);
     if (existing == null && ref.read(gardenProvider).length >= Rules.habitCap) {
-      _toast('Your garden is full for now. Let a few flowers bloom first.');
+      _toast(
+        "Your garden is full for now. You can remove a flower you've "
+        'finished with to make room.',
+      );
       return;
     }
     try {
       await garden.refresh();
+    } catch (_) {}
+    if (!mounted) return;
+    _toast(
+      "That didn't go through. Your garden has been refreshed, "
+      'so please try again.',
+    );
+  }
+
+  Future<void> _remove() async {
+    final h = widget.existing!;
+    final remove = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Remove ${h.name}?'),
+        content: const Text(
+          'This takes it out of your garden and deletes its history. '
+          'This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            key: const Key('confirm-remove'),
+            style: TextButton.styleFrom(minimumSize: const Size(44, 44)),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Remove'),
+          ),
+          FilledButton(
+            key: const Key('keep-it'),
+            autofocus: true,
+            style: FilledButton.styleFrom(minimumSize: const Size(44, 44)),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep it'),
+          ),
+        ],
+      ),
+    );
+    if (remove != true || !mounted) return;
+    try {
+      await ref.read(gardenProvider.notifier).remove(h.id);
+      // The habit screen underneath would show an empty state; go home.
+      if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+      return;
+    } catch (_) {
+      // Fall through to the gentle recovery below.
+    }
+    try {
+      await ref.read(gardenProvider.notifier).refresh();
     } catch (_) {}
     if (!mounted) return;
     _toast(
@@ -243,6 +292,20 @@ class _HabitFormState extends ConsumerState<HabitForm> {
             onPressed: _saving ? null : _save,
             child: Text(isNew ? 'Plant it' : 'Save'),
           ),
+          if (!isNew) ...[
+            const SizedBox(height: 16),
+            Center(
+              child: TextButton(
+                key: const Key('remove-button'),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(44, 48),
+                  foregroundColor: inkBrown,
+                ),
+                onPressed: _saving ? null : _remove,
+                child: const Text('Remove from garden'),
+              ),
+            ),
+          ],
         ],
       ),
     );

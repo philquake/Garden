@@ -57,6 +57,15 @@ class GardenController extends Notifier<List<Habit>> {
     return _set([...state, h]);
   }
 
+  /// Takes the habit and its history out of the garden for good.
+  Future<void> remove(String id) {
+    if (!state.any((h) => h.id == id)) throw StateError('No habit $id');
+    return _set([
+      for (final h in state)
+        if (h.id != id) h,
+    ]);
+  }
+
   Future<void> water(String id, {int? forDay}) =>
       _update(id, (h, t) => actions.water(h, t, forDay: forDay));
 

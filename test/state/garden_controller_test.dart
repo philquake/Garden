@@ -190,4 +190,18 @@ void main() {
     final h = c.read(gardenProvider).single;
     expect([h.reminderBaselineMissed, h.ignoredReminders], [0, 0]);
   });
+
+  test('remove deletes and persists; frees a place at the cap', () async {
+    final c = await make(prefs, () => 20000);
+    final g = c.read(gardenProvider.notifier);
+    for (var i = 0; i < 8; i++) {
+      await g.add(seed('h$i', 20000));
+    }
+    expect(() => g.remove('zz'), throwsStateError);
+    await g.remove('h3');
+    expect(c.read(gardenProvider).map((h) => h.id), isNot(contains('h3')));
+    expect(HabitStore(prefs).load().length, 7);
+    await g.add(seed('h9', 20000));
+    expect(c.read(gardenProvider).length, 8);
+  });
 }

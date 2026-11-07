@@ -141,4 +141,27 @@ void main() {
     expect(find.textContaining('Your garden is full'), findsOneWidget);
     expect(container.read(gardenProvider), hasLength(8));
   });
+
+  testWidgets('removing from the edit form lands back on the meadow', (
+    tester,
+  ) async {
+    final container = await _start(tester, () => 20000);
+    await _plant(tester, 'Stretch');
+    await tester.tap(find.text('Stretch'));
+    await _frames(tester);
+    await tester.tap(find.byKey(const Key('edit-button')));
+    await _frames(tester);
+    await tester.ensureVisible(find.byKey(const Key('remove-button')));
+    await tester.tap(find.byKey(const Key('remove-button')));
+    await _frames(tester);
+    await tester.tap(find.byKey(const Key('confirm-remove')));
+    await _frames(tester);
+    expect(container.read(gardenProvider), isEmpty);
+    expect(find.byType(HabitForm), findsNothing);
+    expect(find.byKey(const Key('plant-button')), findsOneWidget);
+    expect(
+      find.text('Your meadow is waiting. Plant your first seed.'),
+      findsOneWidget,
+    );
+  });
 }

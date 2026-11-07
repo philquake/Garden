@@ -74,7 +74,8 @@ class _MeadowScreenState extends ConsumerState<MeadowScreen>
         ..showSnackBar(
           const SnackBar(
             content: Text(
-              'Your garden is full for now. Let a few flowers bloom first.',
+              "Your garden is full for now. You can remove a flower you've "
+              'finished with to make room.',
             ),
           ),
         );

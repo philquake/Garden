@@ -118,6 +118,19 @@ void main() {
     ]);
   });
 
+  test('removing a habit replans without it', () async {
+    final fake = FakeScheduler();
+    final c = await _container(fake, habits: [_habit('a'), _habit('b')]);
+    c.read(notificationSyncProvider);
+    await Future<void>.delayed(Duration.zero);
+    expect(fake.scheduled.last.any((i) => i.n.habitId == 'a'), isTrue);
+    await c.read(gardenProvider.notifier).remove('a');
+    await Future<void>.delayed(Duration.zero);
+    expect(fake.scheduled.length, 2);
+    expect(fake.scheduled.last.any((i) => i.n.habitId == 'a'), isFalse);
+    expect(fake.scheduled.last, isNotEmpty);
+  });
+
   test('overlapping replans never run concurrently', () async {
     final fake = FakeScheduler()..hold = Completer<void>();
     final c = await _container(fake, habits: [_habit('a')]);

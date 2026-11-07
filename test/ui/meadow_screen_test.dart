@@ -11,7 +11,9 @@ import 'package:garden/ui/theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _today = 20000;
-const _full = 'Your garden is full for now. Let a few flowers bloom first.';
+const _full =
+    "Your garden is full for now. You can remove a flower you've finished "
+    'with to make room.';
 
 Habit _h(String id) => Habit.newSeed(
   id: id,

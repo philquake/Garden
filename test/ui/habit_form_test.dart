@@ -249,7 +249,10 @@ void main() {
     await tester.enterText(find.byKey(const Key('name-field')), 'Ninth');
     await _save(tester);
     expect(
-      find.text('Your garden is full for now. Let a few flowers bloom first.'),
+      find.text(
+        "Your garden is full for now. You can remove a flower you've "
+        'finished with to make room.',
+      ),
       findsOneWidget,
     );
     expect(find.byType(HabitForm), findsOneWidget);
@@ -347,6 +350,84 @@ void main() {
       );
       await _save(tester);
       expect(_habits.single.reminderMinutes, 540);
+    });
+  });
+
+  group('remove from garden', () {
+    Future<void> openDialog(WidgetTester tester) async {
+      await tester.ensureVisible(find.byKey(const Key('remove-button')));
+      await tester.pump();
+      await _tap(tester, 'remove-button');
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
+    Future<void> settle(WidgetTester tester) async {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
+    testWidgets('not offered when planting', (tester) async {
+      await _pump(tester);
+      expect(find.byKey(const Key('remove-button')), findsNothing);
+    });
+
+    testWidgets('offered when editing, at least 44x44', (tester) async {
+      final h = _habit('a');
+      await _pump(tester, habits: [h], existing: h);
+      final size = tester.getSize(find.byKey(const Key('remove-button')));
+      expect(size.width, greaterThanOrEqualTo(44));
+      expect(size.height, greaterThanOrEqualTo(44));
+    });
+
+    testWidgets('confirming removes it and returns to the first screen', (
+      tester,
+    ) async {
+      final h = _habit('a');
+      await _pump(tester, habits: [h, _habit('b')], existing: h);
+      await openDialog(tester);
+      expect(find.text('Remove Read?'), findsOneWidget);
+      expect(
+        find.text(
+          'This takes it out of your garden and deletes its history. '
+          'This cannot be undone.',
+        ),
+        findsOneWidget,
+      );
+      await _tap(tester, 'confirm-remove');
+      await settle(tester);
+      expect(_habits.map((e) => e.id), ['b']);
+      expect(find.byType(HabitForm), findsNothing);
+      expect(find.byKey(const Key('open')), findsOneWidget);
+    });
+
+    testWidgets('Keep it leaves the habit and the form', (tester) async {
+      final h = _habit('a');
+      await _pump(tester, habits: [h], existing: h);
+      await openDialog(tester);
+      await _tap(tester, 'keep-it');
+      await settle(tester);
+      expect(find.text('Remove Read?'), findsNothing);
+      expect(_habits.single.id, 'a');
+      expect(find.byType(HabitForm), findsOneWidget);
+    });
+
+    testWidgets('works through semantics', (tester) async {
+      final handle = tester.ensureSemantics();
+      final h = _habit('a');
+      await _pump(tester, habits: [h], existing: h);
+      await tester.ensureVisible(find.byKey(const Key('remove-button')));
+      await tester.pump();
+      tester.semantics.tap(find.semantics.byLabel('Remove from garden'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      tester.semantics.tap(find.semantics.byLabel('Remove'));
+      await settle(tester);
+      expect(_habits, isEmpty);
+      handle.dispose();
     });
   });
 }
