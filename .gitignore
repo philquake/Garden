@@ -1,1 +1,11 @@
 .superpowers/
+.dart_tool/
+build/
+.flutter-plugins*
+.packages
+*.iml
+.idea/
+local.properties
+.gradle/
+Pods/
+.flutter-plugins-dependencies
