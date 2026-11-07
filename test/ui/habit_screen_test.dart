@@ -30,6 +30,12 @@ class _Throwing extends GardenController {
   @override
   Future<void> water(String id, {int? forDay}) =>
       throw StateError('cannot water');
+
+  @override
+  Future<void> replant(String id) => throw StateError('cannot replant');
+
+  @override
+  Future<void> freshStart(String id) => throw StateError('cannot start');
 }
 
 Habit _seed({int plantedAgo = 0}) => Habit.newSeed(
@@ -279,6 +285,47 @@ void main() {
       findsOneWidget,
     );
     handle.dispose();
+  });
+
+  testWidgets('semantic tap on the flower waters it', (tester) async {
+    final handle = tester.ensureSemantics();
+    await _pump(tester, [_seed(plantedAgo: 20)]);
+    expect(_progress(tester), '0 of 7 this week');
+    tester.semantics.tap(find.semantics.byLabel('Water Read'));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(_progress(tester), '1 of 7 this week');
+    await tester.pump(const Duration(seconds: 1));
+    handle.dispose();
+  });
+
+  testWidgets('semantic tap on a back-fill cell waters that day', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await _pump(tester, [_seed(plantedAgo: 20)]);
+    tester.semantics.tap(
+      find.semantics.byLabel('Mark Thursday, 3 October as watered'),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(
+      find.byKey(Key('watered-${_today - 1}'), skipOffstage: false),
+      findsOneWidget,
+    );
+    handle.dispose();
+  });
+
+  testWidgets('failed replant shows a gentle message', (tester) async {
+    await _pump(tester, [_lost()], throwing: true);
+    await _tapVisible(tester, find.byKey(const Key('replant-button')));
+    expect(find.text(gentle), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('failed fresh start shows a gentle message', (tester) async {
+    await _pump(tester, [_seed(plantedAgo: 10)], throwing: true);
+    await _tapVisible(tester, find.byKey(const Key('fresh-start-button')));
+    expect(find.text(gentle), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('edit button calls onEdit', (tester) async {

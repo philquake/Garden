@@ -97,6 +97,7 @@ class _HabitScreenState extends ConsumerState<HabitScreen> {
                         ? '${h.name} is resting. You can plant a new seed '
                               'below.'
                         : 'Water ${h.name}',
+                    onTap: h.lost ? null : () => _water(h),
                     excludeSemantics: true,
                     child: GestureDetector(
                       key: const Key('habit-flower'),
@@ -147,7 +148,7 @@ class _HabitScreenState extends ConsumerState<HabitScreen> {
                   if (h.lost) ...[
                     FilledButton(
                       key: const Key('replant-button'),
-                      onPressed: () => notifier.replant(h.id),
+                      onPressed: () => _attempt(() => notifier.replant(h.id)),
                       child: const Text('Plant a new seed'),
                     ),
                     const SizedBox(height: 4),
@@ -155,7 +156,8 @@ class _HabitScreenState extends ConsumerState<HabitScreen> {
                   ] else if (struggling) ...[
                     FilledButton(
                       key: const Key('fresh-start-button'),
-                      onPressed: () => notifier.freshStart(h.id),
+                      onPressed: () =>
+                          _attempt(() => notifier.freshStart(h.id)),
                       child: const Text('Give it a fresh start'),
                     ),
                     const SizedBox(height: 4),
@@ -335,6 +337,7 @@ class _Calendar extends StatelessWidget {
         button: true,
         label: 'Mark $label as watered',
         excludeSemantics: true,
+        onTap: () => onBackfill(d),
         child: GestureDetector(
           key: ValueKey('backfill-$d'),
           behavior: HitTestBehavior.opaque,
