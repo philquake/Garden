@@ -6,11 +6,14 @@ import 'package:garden/data/habit_store.dart';
 import 'package:garden/domain/growth.dart';
 import 'package:garden/domain/habit.dart';
 import 'package:garden/domain/schedule.dart';
+import 'package:garden/notify/notification_sync.dart';
 import 'package:garden/state/art_provider.dart';
 import 'package:garden/state/garden_controller.dart';
 import 'package:garden/ui/habit_form.dart';
 import 'package:garden/ui/theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../notify/fake_scheduler.dart';
 
 const _today = 20000;
 const _ids = ['rose', 'lily', 'iris', 'poppy', 'aster'];
@@ -40,6 +43,7 @@ Future<void> _pump(
   List<Habit> habits = const [],
   Habit? existing,
   int today = _today,
+  FakeScheduler? scheduler,
 }) async {
   tester.view.physicalSize = const Size(800, 1800);
   tester.view.devicePixelRatio = 1;
@@ -53,6 +57,8 @@ Future<void> _pump(
       habitStoreProvider.overrideWithValue(store),
       todayProvider.overrideWithValue(() => today),
       artPackProvider.overrideWithValue(_pack),
+      if (scheduler != null)
+        notificationSchedulerProvider.overrideWithValue(scheduler),
     ],
   );
   addTearDown(_c.dispose);
@@ -284,5 +290,63 @@ void main() {
     await _save(tester);
     expect(_habits.single.schedule, Schedule.weekday(5));
     handle.dispose();
+  });
+
+  group('notification permission', () {
+    testWidgets('asked once when the switch goes on, not on save', (
+      tester,
+    ) async {
+      final fake = FakeScheduler();
+      await _pump(tester, scheduler: fake);
+      await tester.enterText(find.byKey(const Key('name-field')), 'Walk');
+      expect(fake.permissionRequests, 0);
+      await _tap(tester, 'reminder-switch');
+      expect(fake.permissionRequests, 1);
+      await _save(tester);
+      expect(fake.permissionRequests, 1);
+      expect(_habits.single.reminderMinutes, 540);
+    });
+
+    testWidgets('not asked when opened with a reminder already on', (
+      tester,
+    ) async {
+      final fake = FakeScheduler();
+      await _pump(
+        tester,
+        scheduler: fake,
+        existing: _habit('h1').copyWith(reminderMinutes: 600),
+        habits: [_habit('h1').copyWith(reminderMinutes: 600)],
+      );
+      expect(find.byKey(const Key('reminder-time')), findsOneWidget);
+      await _save(tester);
+      expect(fake.permissionRequests, 0);
+    });
+
+    testWidgets('not asked when saving with the reminder off', (tester) async {
+      final fake = FakeScheduler();
+      await _pump(tester, scheduler: fake);
+      await tester.enterText(find.byKey(const Key('name-field')), 'Walk');
+      await _save(tester);
+      expect(fake.permissionRequests, 0);
+    });
+
+    testWidgets('denied shows a gentle note and the reminder still saves', (
+      tester,
+    ) async {
+      final fake = FakeScheduler(permission: false);
+      await _pump(tester, scheduler: fake);
+      await tester.enterText(find.byKey(const Key('name-field')), 'Walk');
+      await _tap(tester, 'reminder-switch');
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(
+        find.text(
+          "Notifications are off for Garden. You can turn them on in your "
+          "phone's settings.",
+        ),
+        findsOneWidget,
+      );
+      await _save(tester);
+      expect(_habits.single.reminderMinutes, 540);
+    });
   });
 }

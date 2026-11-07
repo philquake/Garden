@@ -7,6 +7,7 @@ import '../domain/habit.dart';
 import '../domain/ids.dart';
 import '../domain/rules.dart';
 import '../domain/schedule.dart';
+import '../notify/notification_sync.dart';
 import '../state/art_provider.dart';
 import '../state/garden_controller.dart';
 import 'theme.dart';
@@ -74,6 +75,23 @@ class _HabitFormState extends ConsumerState<HabitForm> {
   void _toast(String text) => ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text(text)));
+
+  /// Asked the first time a reminder is switched on, never at launch.
+  Future<void> _askPermission() async {
+    try {
+      final granted = await ref
+          .read(notificationSchedulerProvider)
+          .requestPermission();
+      if (!granted && mounted) {
+        _toast(
+          "Notifications are off for Garden. You can turn them on in your "
+          "phone's settings.",
+        );
+      }
+    } catch (_) {
+      // The reminder is still saved; notifications simply may not show.
+    }
+  }
 
   Future<void> _pickTime() async {
     final t = await showTimePicker(
@@ -202,7 +220,10 @@ class _HabitFormState extends ConsumerState<HabitForm> {
             key: const Key('reminder-switch'),
             title: const Text('Remind me'),
             value: _remind,
-            onChanged: (v) => setState(() => _remind = v),
+            onChanged: (v) {
+              setState(() => _remind = v);
+              if (v) _askPermission();
+            },
           ),
           if (_remind)
             ListTile(

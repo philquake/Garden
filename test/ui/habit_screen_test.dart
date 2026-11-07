@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garden/data/habit_store.dart';
 import 'package:garden/domain/habit.dart';
+import 'package:garden/domain/neglect.dart' as neglect;
+import 'package:garden/domain/reminders.dart';
 import 'package:garden/domain/schedule.dart';
 import 'package:garden/state/garden_controller.dart';
 import 'package:garden/state/water_random_provider.dart';
@@ -333,5 +335,49 @@ void main() {
     await _pump(tester, [_seed()], onEdit: () => edited++);
     await _tapVisible(tester, find.byKey(const Key('edit-button')));
     expect(edited, 1);
+  });
+
+  group('paused reminders card', () {
+    Habit missed({int reminder = 540, int days = 4}) => syncIgnoredReminders(
+      neglect.advance(
+        Habit.newSeed(
+          id: 'h1',
+          name: 'Read',
+          flowerId: 'tulip',
+          schedule: const Schedule.daily(),
+          today: _today - days,
+          reminderMinutes: reminder,
+        ),
+        _today,
+      ),
+    );
+
+    testWidgets('shows after 3 ignored reminders and opens edit', (
+      tester,
+    ) async {
+      var edits = 0;
+      final h = missed();
+      expect(h.ignoredReminders, greaterThanOrEqualTo(3));
+      await _pump(tester, [h], onEdit: () => edits++);
+      expect(
+        find.text('Reminders are paused for now. Want to pick a gentler time?'),
+        findsOneWidget,
+      );
+      await _tapVisible(
+        tester,
+        find.byKey(const Key('change-reminder-button')),
+      );
+      expect(edits, 1);
+    });
+
+    testWidgets('absent for a healthy habit', (tester) async {
+      await _pump(tester, [_seed()]);
+      expect(find.byKey(const Key('reminders-paused-card')), findsNothing);
+    });
+
+    testWidgets('absent when the habit has no reminder', (tester) async {
+      await _pump(tester, [missed(reminder: -1)]);
+      expect(find.byKey(const Key('reminders-paused-card')), findsNothing);
+    });
   });
 }

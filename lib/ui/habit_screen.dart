@@ -138,6 +138,12 @@ class _HabitScreenState extends ConsumerState<HabitScreen> {
                       style: theme.textTheme.titleMedium,
                     ),
                   ),
+                  if (h.reminderMinutes >= 0 &&
+                      h.ignoredReminders >= 3 &&
+                      !h.lost) ...[
+                    const SizedBox(height: 12),
+                    _PausedCard(onChange: widget.onEdit),
+                  ],
                   const SizedBox(height: 16),
                   _Calendar(
                     habit: h,
@@ -216,6 +222,37 @@ class _HabitScreenState extends ConsumerState<HabitScreen> {
           );
     if (h.lost) image = Opacity(opacity: 0.45, child: image);
     return image;
+  }
+}
+
+class _PausedCard extends StatelessWidget {
+  const _PausedCard({required this.onChange});
+  final VoidCallback onChange;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      key: const Key('reminders-paused-card'),
+      color: sageLight,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Reminders are paused for now. Want to pick a gentler time?',
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              key: const Key('change-reminder-button'),
+              style: TextButton.styleFrom(minimumSize: const Size(44, 44)),
+              onPressed: onChange,
+              child: const Text('Change reminder'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
