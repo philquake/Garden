@@ -198,4 +198,22 @@ void main() {
     await tester.pump();
     expect(find.byKey(_banner), findsOneWidget);
   });
+
+  testWidgets('every dismissed fresh-start banner stays hidden', (
+    tester,
+  ) async {
+    final c = await _pump(tester, [_seed('b', 20000, 10)]);
+    await tester.tap(find.byKey(_dismiss));
+    await tester.pump();
+    await c.read(gardenProvider.notifier).add(_seed('c', 20000, 12));
+    await tester.pump();
+    expect(find.byKey(_banner), findsOneWidget);
+    await tester.tap(find.byKey(_dismiss));
+    await tester.pump();
+    // With c watered, b is the top choice again, and it was dismissed.
+    await c.read(gardenProvider.notifier).water('c');
+    await tester.pump();
+    expect(bannerChoice(c.read(gardenProvider), 20000).habitId, 'b');
+    expect(find.byKey(_banner), findsNothing);
+  });
 }

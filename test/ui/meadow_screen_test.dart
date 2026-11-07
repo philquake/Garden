@@ -164,4 +164,16 @@ void main() {
     expect(h.evaluatedDay, _today + 5);
     expect(h.missedSinceWater, 4);
   });
+
+  testWidgets('turning on Reduce Motion while open stops the insects', (
+    tester,
+  ) async {
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    await _pump(tester, 2);
+    expect(find.byKey(const Key('insect')), findsWidgets);
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(reduceMotion: true);
+    await tester.pump();
+    expect(find.byKey(const Key('insect')), findsNothing);
+  });
 }

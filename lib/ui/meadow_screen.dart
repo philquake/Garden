@@ -46,6 +46,14 @@ class _MeadowScreenState extends ConsumerState<MeadowScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _applyMotion();
+  }
+
+  // iOS Reduce Motion is not part of MediaQueryData, so listen for it too.
+  @override
+  void didChangeAccessibilityFeatures() => setState(_applyMotion);
+
+  void _applyMotion() {
     _still = reduceMotion(context);
     if (_still) {
       _t.stop();
