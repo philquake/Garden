@@ -90,29 +90,53 @@ class _HabitScreenState extends ConsumerState<HabitScreen> {
                 ),
               ),
               child: SafeArea(
-                child: Center(
-                  child: Semantics(
-                    button: !h.lost,
-                    label: h.lost
-                        ? '${h.name} is resting. You can plant a new seed '
-                              'below.'
-                        : 'Water ${h.name}',
-                    onTap: h.lost ? null : () => _water(h),
-                    excludeSemantics: true,
-                    child: GestureDetector(
-                      key: const Key('habit-flower'),
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => _water(h),
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: WaterEffect(
-                          trigger: _waterTaps,
-                          random: ref.read(waterRandomProvider),
-                          child: _flower(h, art),
+                child: Stack(
+                  children: [
+                    Center(
+                      child: Semantics(
+                        button: !h.lost,
+                        label: h.lost
+                            ? '${h.name} is resting. You can plant a new seed '
+                                  'below.'
+                            : 'Water ${h.name}',
+                        onTap: h.lost ? null : () => _water(h),
+                        excludeSemantics: true,
+                        child: GestureDetector(
+                          key: const Key('habit-flower'),
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => _water(h),
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: WaterEffect(
+                              trigger: _waterTaps,
+                              random: ref.read(waterRandomProvider),
+                              child: _flower(h, art),
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                    Positioned(
+                      top: 4,
+                      left: 4,
+                      child: Semantics(
+                        button: true,
+                        label: 'Back',
+                        excludeSemantics: true,
+                        onTap: () => Navigator.of(context).maybePop(),
+                        child: IconButton(
+                          key: const Key('habit-back-button'),
+                          tooltip: 'Back',
+                          constraints: const BoxConstraints(
+                            minWidth: 48,
+                            minHeight: 48,
+                          ),
+                          icon: const Icon(Icons.arrow_back_rounded),
+                          onPressed: () => Navigator.of(context).maybePop(),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

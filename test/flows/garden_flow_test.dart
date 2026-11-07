@@ -85,8 +85,16 @@ void main() {
     expect(find.text('1 of 7 this week'), findsOneWidget);
     expect(habit().wateredDays, contains(planted));
 
-    tester.state<NavigatorState>(find.byType(Navigator)).pop();
+    await tester.tap(find.byKey(const Key('habit-back-button')));
     await _frames(tester);
+    // Six more daily waterings (via the notifier) bring it to growth stage 1.
+    for (var i = 0; i < 6; i++) {
+      await advance(1);
+      await tester.runAsync(
+        () => container.read(gardenProvider.notifier).water(habit().id),
+      );
+    }
+    expect(growthStage(habit()), 1);
     await advance(9);
     expect(find.byKey(const Key('encouragement-banner')), findsOneWidget);
     await tester.tap(flower);
@@ -94,6 +102,7 @@ void main() {
     expect(find.byKey(const Key('fresh-start-button')), findsOneWidget);
 
     final stageBefore = growthStage(habit());
+    expect(stageBefore, 1);
     await tester.tap(find.byKey(const Key('fresh-start-button')));
     await _frames(tester);
     expect(find.byKey(const Key('fresh-start-button')), findsNothing);
@@ -102,7 +111,7 @@ void main() {
     expect(habit().declineStep, 0);
     expect(find.byKey(ValueKey('watered-$planted')), findsOneWidget);
 
-    tester.state<NavigatorState>(find.byType(Navigator)).pop();
+    await tester.tap(find.byKey(const Key('habit-back-button')));
     await _frames(tester);
     await advance(40);
     expect(habit().lost, isTrue);
@@ -114,6 +123,7 @@ void main() {
     await tester.tap(find.byKey(const Key('replant-button')));
     await _frames(tester);
     expect(growthStage(habit()), 0);
+    expect(habit().plantingWaterings, 0);
     expect(habit().wateredDays, contains(planted));
     expect(habit().plantingNumber, 2);
     expect(find.byKey(const Key('replant-button')), findsNothing);

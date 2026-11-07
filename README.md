@@ -49,7 +49,7 @@ iOS builds need a Mac.
 | Fresh start | allowed from petal loss; keeps stage and history |
 | Replant | when lost; new seed, history kept |
 | Habit cap | 8 |
-| Reminders | paused after 3 ignored in a row; warnings at 14, 21 and 27 days |
+| Reminders | 1 per habit at a time you choose (default 9:00); at most 2 notifications a day in total (extras are grouped); quiet hours 10pm to 8am (reminders in that window move to 8am); paused after 3 ignored in a row; warnings at days 14, 21 and 27 are exempt from the daily cap |
 | Back-fill | up to 3 days |
 | Day boundary | 3am |
 | Week starts | Monday |

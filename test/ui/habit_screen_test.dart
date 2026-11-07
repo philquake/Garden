@@ -61,6 +61,7 @@ Future<void> _pump(
   double random = 0.9,
   bool disableAnimations = false,
   VoidCallback? onEdit,
+  bool pushed = false,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final store = HabitStore(await SharedPreferences.getInstance());
@@ -80,7 +81,19 @@ Future<void> _pump(
               .copyWith(disableAnimations: disableAnimations),
           child: child!,
         ),
-        home: HabitScreen(habitId: id, onEdit: onEdit ?? () {}),
+        home: pushed
+            ? Builder(
+                builder: (context) => TextButton(
+                  key: const Key('open'),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => HabitScreen(habitId: id, onEdit: () {}),
+                    ),
+                  ),
+                  child: const Text('open'),
+                ),
+              )
+            : HabitScreen(habitId: id, onEdit: onEdit ?? () {}),
       ),
     ),
   );
@@ -379,5 +392,25 @@ void main() {
       await _pump(tester, [missed(reminder: -1)]);
       expect(find.byKey(const Key('reminders-paused-card')), findsNothing);
     });
+  });
+
+  testWidgets('back button pops the route, is 44px+ and labelled Back', (
+    tester,
+  ) async {
+    await _pump(tester, [_seed()], pushed: true);
+    await tester.tap(find.byKey(const Key('open')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    final back = find.byKey(const Key('habit-back-button'));
+    final size = tester.getSize(back);
+    expect(size.width, greaterThanOrEqualTo(44));
+    expect(size.height, greaterThanOrEqualTo(44));
+    expect(find.bySemanticsLabel('Back'), findsOneWidget);
+    await tester.tap(back);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(HabitScreen), findsNothing);
+    expect(find.byKey(const Key('open')), findsOneWidget);
   });
 }

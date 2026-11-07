@@ -106,6 +106,21 @@ void main() {
   test('load propagates a missing manifest so callers can fall back', () {
     expect(ArtPack.load(_MissingBundle(), pack: 'nope'), throwsA(anything));
   });
+
+  test('load rejects a malformed manifest', () {
+    expect(
+      ArtPack.load(_StringBundle('{not json'), pack: 'bad'),
+      throwsFormatException,
+    );
+  });
+}
+
+class _StringBundle extends CachingAssetBundle {
+  _StringBundle(this.text);
+  final String text;
+  @override
+  Future<ByteData> load(String key) async =>
+      ByteData.sublistView(Uint8List.fromList(utf8.encode(text)));
 }
 
 class _MissingBundle extends CachingAssetBundle {
