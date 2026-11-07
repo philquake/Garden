@@ -60,7 +60,8 @@ void main() {
     final json = h.toJson();
     expect(json['wateredDays'], [5, 7, 9]);
     final back = Habit.fromJson(
-        jsonDecode(jsonEncode(json)) as Map<String, dynamic>);
+      jsonDecode(jsonEncode(json)) as Map<String, dynamic>,
+    );
     expect(back.toJson(), json);
     expect(back.schedule, Schedule.timesPerWeek(3));
   });

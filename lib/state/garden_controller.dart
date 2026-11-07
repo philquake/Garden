@@ -1,0 +1,75 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../data/habit_store.dart';
+import '../domain/actions.dart' as actions;
+import '../domain/day.dart';
+import '../domain/habit.dart';
+import '../domain/neglect.dart';
+import '../domain/rules.dart';
+import '../domain/schedule.dart';
+
+final habitStoreProvider = Provider<HabitStore>(
+  (ref) => throw UnimplementedError('override habitStoreProvider'),
+);
+
+final todayProvider = Provider<int Function()>(
+  (ref) =>
+      () => dayIndex(DateTime.now()),
+);
+
+final gardenProvider = NotifierProvider<GardenController, List<Habit>>(
+  GardenController.new,
+);
+
+class GardenController extends Notifier<List<Habit>> {
+  HabitStore get _store => ref.read(habitStoreProvider);
+  int get _today => ref.read(todayProvider)();
+
+  @override
+  List<Habit> build() {
+    final today = _today;
+    return [for (final h in _store.load()) advance(h, today)];
+  }
+
+  Future<void> _set(List<Habit> habits) async {
+    state = habits;
+    await _store.save(habits);
+  }
+
+  Future<void> _update(String id, Habit Function(Habit h, int today) f) {
+    final i = state.indexWhere((h) => h.id == id);
+    if (i < 0) throw StateError('No habit $id');
+    final next = f(state[i], _today);
+    return _set([...state]..[i] = next);
+  }
+
+  Future<void> add(Habit h) {
+    if (state.length >= Rules.habitCap) {
+      throw StateError('Garden is full (${Rules.habitCap})');
+    }
+    if (state.any((e) => e.id == h.id)) {
+      throw StateError('Duplicate habit id ${h.id}');
+    }
+    return _set([...state, h]);
+  }
+
+  Future<void> water(String id, {int? forDay}) =>
+      _update(id, (h, t) => actions.water(h, t, forDay: forDay));
+
+  Future<void> editSchedule(String id, Schedule s) =>
+      _update(id, (h, t) => actions.editSchedule(h, s, t));
+
+  Future<void> freshStart(String id) => _update(id, actions.freshStart);
+
+  Future<void> replant(String id) => _update(id, actions.replant);
+
+  Future<void> refresh() async {
+    final today = _today;
+    final next = [for (final h in state) advance(h, today)];
+    var changed = false;
+    for (var i = 0; i < next.length; i++) {
+      if (!identical(next[i], state[i])) changed = true;
+    }
+    if (changed) await _set(next);
+  }
+}

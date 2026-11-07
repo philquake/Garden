@@ -26,10 +26,10 @@ Habit advance(Habit h, int today) {
     final target = missed >= Rules.petalMissed && ds >= Rules.petalDays
         ? 3
         : missed >= Rules.wiltMissed && ds >= Rules.wiltDays
-            ? 2
-            : missed >= 1
-                ? 1
-                : 0;
+        ? 2
+        : missed >= 1
+        ? 1
+        : 0;
     step = max(step, target);
     if (ds >= Rules.lostDays) lost = true;
   }
@@ -55,8 +55,7 @@ int _missesOn(Habit h, int d) {
       final weekStart = d - 6; // Monday of this week
       final available = d - max<int>(h.plantedDay, weekStart) + 1;
       final expected = min(s.value, available);
-      final done =
-          h.wateredDays.where((w) => w >= weekStart && w <= d).length;
+      final done = h.wateredDays.where((w) => w >= weekStart && w <= d).length;
       return max(0, expected - done);
   }
 }

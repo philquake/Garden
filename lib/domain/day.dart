@@ -4,9 +4,12 @@ import 'rules.dart';
 /// transitions cannot shift the day. DateTime.utc normalises a negative hour
 /// into the previous day.
 int dayIndexFromWallClock(int year, int month, int day, int hour) {
-  final ms =
-      DateTime.utc(year, month, day, hour - Rules.dayStartHour)
-          .millisecondsSinceEpoch;
+  final ms = DateTime.utc(
+    year,
+    month,
+    day,
+    hour - Rules.dayStartHour,
+  ).millisecondsSinceEpoch;
   return _floorDiv(ms, Duration.millisecondsPerDay);
 }
 

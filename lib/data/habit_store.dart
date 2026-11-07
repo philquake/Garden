@@ -45,6 +45,9 @@ class HabitStore {
   }
 
   Future<void> save(List<Habit> habits) async {
-    await _prefs.setString(_key, jsonEncode(habits.map((h) => h.toJson()).toList()));
+    await _prefs.setString(
+      _key,
+      jsonEncode(habits.map((h) => h.toJson()).toList()),
+    );
   }
 }

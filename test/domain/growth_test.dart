@@ -4,12 +4,12 @@ import 'package:garden/domain/habit.dart';
 import 'package:garden/domain/schedule.dart';
 
 Habit seed(Schedule s, int waterings) => Habit.newSeed(
-      id: 'h',
-      name: 'Habit',
-      flowerId: 'rose',
-      schedule: s,
-      today: 0,
-    ).copyWith(plantingWaterings: waterings);
+  id: 'h',
+  name: 'Habit',
+  flowerId: 'rose',
+  schedule: s,
+  today: 0,
+).copyWith(plantingWaterings: waterings);
 
 void main() {
   test('daily habit with 0 waterings is stage 0', () {

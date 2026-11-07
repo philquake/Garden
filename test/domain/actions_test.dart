@@ -6,7 +6,12 @@ import 'package:garden/domain/neglect.dart';
 import 'package:garden/domain/schedule.dart';
 
 Habit seed([Schedule s = const Schedule.daily()]) => Habit.newSeed(
-    id: 'a', name: 'Read', flowerId: 'rose', schedule: s, today: 100);
+  id: 'a',
+  name: 'Read',
+  flowerId: 'rose',
+  schedule: s,
+  today: 100,
+);
 
 void main() {
   group('water', () {
@@ -113,8 +118,11 @@ void main() {
 
   group('editSchedule', () {
     test('mid-week edit then advance same day yields no new misses', () {
-      final h = editSchedule(seed(Schedule.timesPerWeek(3)),
-          const Schedule.daily(), 103);
+      final h = editSchedule(
+        seed(Schedule.timesPerWeek(3)),
+        const Schedule.daily(),
+        103,
+      );
       expect(h.schedule, const Schedule.daily());
       expect(h.evaluatedDay, 103);
       final a = advance(h, 103);
@@ -130,13 +138,15 @@ void main() {
   });
 
   group('fix round 1', () {
-    test('water on a habit that goes lost through advance throws, no change',
-        () {
-      final h = seed();
-      expect(() => water(h, 130), throwsStateError);
-      expect(h.wateredDays, isEmpty);
-      expect(h.plantingWaterings, 0);
-    });
+    test(
+      'water on a habit that goes lost through advance throws, no change',
+      () {
+        final h = seed();
+        expect(() => water(h, 130), throwsStateError);
+        expect(h.wateredDays, isEmpty);
+        expect(h.plantingWaterings, 0);
+      },
+    );
 
     test('backward clock: editSchedule does not double count', () {
       final h = advance(seed(), 105);
@@ -171,13 +181,15 @@ void main() {
       expect(end.evaluatedDay, 150);
     });
 
-    test('back-fill before lastWaterDay at step 2 drops to 1, keeps lastWaterDay',
-        () {
-      final h = advance(seed(), 105).copyWith(lastWaterDay: 104);
-      expect(h.declineStep, 2);
-      final w = water(h, 105, forDay: 102);
-      expect(w.declineStep, 1);
-      expect(w.lastWaterDay, 104);
-    });
+    test(
+      'back-fill before lastWaterDay at step 2 drops to 1, keeps lastWaterDay',
+      () {
+        final h = advance(seed(), 105).copyWith(lastWaterDay: 104);
+        expect(h.declineStep, 2);
+        final w = water(h, 105, forDay: 102);
+        expect(w.declineStep, 1);
+        expect(w.lastWaterDay, 104);
+      },
+    );
   });
 }

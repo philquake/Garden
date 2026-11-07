@@ -27,16 +27,16 @@ class Schedule {
 
   /// Expected completions in a 28-day window.
   int get perFourWeeks => switch (kind) {
-        ScheduleKind.daily => 28,
-        ScheduleKind.timesPerWeek => 4 * _value,
-        ScheduleKind.weekday => 4,
-      };
+    ScheduleKind.daily => 28,
+    ScheduleKind.timesPerWeek => 4 * _value,
+    ScheduleKind.weekday => 4,
+  };
 
   Map<String, dynamic> toJson() => {
-        'kind': kind.name,
-        if (kind == ScheduleKind.timesPerWeek) 'n': _value,
-        if (kind == ScheduleKind.weekday) 'weekday': _value,
-      };
+    'kind': kind.name,
+    if (kind == ScheduleKind.timesPerWeek) 'n': _value,
+    if (kind == ScheduleKind.weekday) 'weekday': _value,
+  };
 
   factory Schedule.fromJson(Map<String, dynamic> j) {
     switch (j['kind']) {

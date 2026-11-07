@@ -5,12 +5,12 @@ import 'package:garden/domain/neglect.dart';
 import 'package:garden/domain/schedule.dart';
 
 Habit planted(Schedule s, int day, {Set<int>? watered}) => Habit.newSeed(
-      id: 'h',
-      name: 'Habit',
-      flowerId: 'rose',
-      schedule: s,
-      today: day,
-    ).copyWith(wateredDays: watered ?? {day});
+  id: 'h',
+  name: 'Habit',
+  flowerId: 'rose',
+  schedule: s,
+  today: day,
+).copyWith(wateredDays: watered ?? {day});
 
 // Day 4 is a Monday (1970-01-05); day 10 is the Sunday that closes its week.
 const monday = 4;
@@ -51,12 +51,15 @@ void main() {
       expect(advance(h, 29).lost, isFalse);
       expect(advance(h, 30).lost, isTrue);
     });
-    test('a 45-day jump in one call ends lost and leaves wateredDays alone', () {
-      final a = advance(h, 45);
-      expect(a.lost, isTrue);
-      expect(a.wateredDays, {0});
-      expect(a.evaluatedDay, 45);
-    });
+    test(
+      'a 45-day jump in one call ends lost and leaves wateredDays alone',
+      () {
+        final a = advance(h, 45);
+        expect(a.lost, isTrue);
+        expect(a.wateredDays, {0});
+        expect(a.evaluatedDay, 45);
+      },
+    );
     test('one big jump equals many small advances', () {
       var stepwise = h;
       for (var d = 1; d <= 45; d++) {
@@ -103,9 +106,11 @@ void main() {
 
   group('timesPerWeek(3)', () {
     test('3 waterings in the week means no misses at Sunday close', () {
-      final h = planted(Schedule.timesPerWeek(3), monday,
-              watered: {monday, monday + 2, monday + 4})
-          .copyWith(lastWaterDay: monday + 4);
+      final h = planted(
+        Schedule.timesPerWeek(3),
+        monday,
+        watered: {monday, monday + 2, monday + 4},
+      ).copyWith(lastWaterDay: monday + 4);
       final a = advance(h, sunday + 1);
       expect(a.missedSinceWater, 0);
       expect(a.declineStep, 0);

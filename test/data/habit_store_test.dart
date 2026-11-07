@@ -7,15 +7,16 @@ import 'package:garden/domain/schedule.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Habit h(String id, {int declineStep = 0}) => Habit.newSeed(
-        id: id,
-        name: 'n$id',
-        flowerId: 'rose',
-        schedule: const Schedule.daily(),
-        today: 10)
-    .copyWith(
-        declineStep: declineStep, wateredDays: {8, 9}, reminderMinutes: 480);
+  id: id,
+  name: 'n$id',
+  flowerId: 'rose',
+  schedule: const Schedule.daily(),
+  today: 10,
+).copyWith(declineStep: declineStep, wateredDays: {8, 9}, reminderMinutes: 480);
 
-Future<(HabitStore, SharedPreferences)> open([Map<String, Object> init = const {}]) async {
+Future<(HabitStore, SharedPreferences)> open([
+  Map<String, Object> init = const {},
+]) async {
   SharedPreferences.setMockInitialValues(init);
   final p = await SharedPreferences.getInstance();
   return (HabitStore(p), p);
@@ -26,8 +27,10 @@ void main() {
     final (s, _) = await open();
     final hs = [h('a'), h('b', declineStep: 2)];
     await s.save(hs);
-    expect(s.load().map((x) => x.toJson()).toList(),
-        hs.map((x) => x.toJson()).toList());
+    expect(
+      s.load().map((x) => x.toJson()).toList(),
+      hs.map((x) => x.toJson()).toList(),
+    );
   });
 
   test('empty prefs loads []', () async {
@@ -50,7 +53,9 @@ void main() {
 
   test('missing required field is corrupt', () async {
     final j = h('a').toJson()..remove('name');
-    final (s, p) = await open({'habits': jsonEncode([j])});
+    final (s, p) = await open({
+      'habits': jsonEncode([j]),
+    });
     expect(s.load(), isEmpty);
     expect(p.getString('habits_corrupt'), isNotNull);
   });
@@ -63,8 +68,9 @@ void main() {
   });
 
   test('duplicate ids are corrupt', () async {
-    final (s, _) = await open(
-        {'habits': jsonEncode([h('a').toJson(), h('a').toJson()])});
+    final (s, _) = await open({
+      'habits': jsonEncode([h('a').toJson(), h('a').toJson()]),
+    });
     expect(s.load(), isEmpty);
   });
 

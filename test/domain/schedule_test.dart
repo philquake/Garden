@@ -27,8 +27,10 @@ void main() {
     expect(() => Schedule.timesPerWeek(8), throwsArgumentError);
     expect(() => Schedule.weekday(0), throwsArgumentError);
     expect(() => Schedule.weekday(8), throwsArgumentError);
-    expect(() => Schedule.fromJson({'kind': 'timesPerWeek', 'n': 9}),
-        throwsArgumentError);
+    expect(
+      () => Schedule.fromJson({'kind': 'timesPerWeek', 'n': 9}),
+      throwsArgumentError,
+    );
     expect(() => Schedule.fromJson({'kind': 'bogus'}), throwsArgumentError);
   });
 }
