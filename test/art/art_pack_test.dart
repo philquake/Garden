@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garden/art/art_pack.dart';
 import 'package:garden/domain/habit.dart';
@@ -100,4 +102,13 @@ void main() {
     ).copyWith(declineStep: d);
     expect([for (var d = 0; d < 4; d++) healthOf(h(d))], FlowerHealth.values);
   });
+
+  test('load propagates a missing manifest so callers can fall back', () {
+    expect(ArtPack.load(_MissingBundle(), pack: 'nope'), throwsA(anything));
+  });
+}
+
+class _MissingBundle extends CachingAssetBundle {
+  @override
+  Future<ByteData> load(String key) => throw FlutterError('missing $key');
 }
