@@ -258,4 +258,31 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(_habits.length, 1);
   });
+
+  testWidgets('semantic tap works on flower, stepper and weekday chip', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await _pump(tester);
+    await tester.enterText(find.byKey(const Key('name-field')), 'A');
+    tester.semantics.tap(find.semantics.byLabel('Choose Iris'));
+    await tester.pump();
+    tester.semantics.tap(find.semantics.byLabel('Times a week'));
+    await tester.pump();
+    tester.semantics.tap(find.semantics.byLabel('More times a week'));
+    await tester.pump();
+    await _save(tester);
+    expect(_habits.single.flowerId, 'iris');
+    expect(_habits.single.schedule, Schedule.timesPerWeek(4));
+
+    await _pump(tester);
+    await tester.enterText(find.byKey(const Key('name-field')), 'B');
+    tester.semantics.tap(find.semantics.byLabel('One day a week'));
+    await tester.pump();
+    tester.semantics.tap(find.semantics.byLabel('Friday'));
+    await tester.pump();
+    await _save(tester);
+    expect(_habits.single.schedule, Schedule.weekday(5));
+    handle.dispose();
+  });
 }

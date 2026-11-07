@@ -237,6 +237,7 @@ class _HabitFormState extends ConsumerState<HabitForm> {
       selected: selected,
       label: 'Choose $name',
       excludeSemantics: true,
+      onTap: () => setState(() => _flowerId = id),
       child: GestureDetector(
         onTap: () => setState(() => _flowerId = id),
         child: Container(
@@ -297,6 +298,7 @@ class _HabitFormState extends ConsumerState<HabitForm> {
         label: 'Fewer times a week',
         button: true,
         excludeSemantics: true,
+        onTap: _times > 1 ? () => setState(() => _times--) : null,
         child: IconButton(
           key: const Key('times-minus'),
           icon: const Icon(Icons.remove_circle_outline),
@@ -308,6 +310,7 @@ class _HabitFormState extends ConsumerState<HabitForm> {
         label: 'More times a week',
         button: true,
         excludeSemantics: true,
+        onTap: _times < 7 ? () => setState(() => _times++) : null,
         child: IconButton(
           key: const Key('times-plus'),
           icon: const Icon(Icons.add_circle_outline),
@@ -326,6 +329,7 @@ class _HabitFormState extends ConsumerState<HabitForm> {
           button: true,
           selected: _weekday == d,
           excludeSemantics: true,
+          onTap: () => setState(() => _weekday = d),
           child: ChoiceChip(
             key: Key('weekday-$d'),
             label: Text(_dayNames[d - 1].substring(0, 3)),
