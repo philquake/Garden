@@ -59,6 +59,26 @@ class GardenController extends Notifier<List<Habit>> {
   Future<void> editSchedule(String id, Schedule s) =>
       _update(id, (h, t) => actions.editSchedule(h, s, t));
 
+  Future<void> editDetails(
+    String id, {
+    String? name,
+    String? flowerId,
+    int? reminderMinutes,
+  }) {
+    final trimmed = name?.trim();
+    if (trimmed != null && trimmed.isEmpty) {
+      throw ArgumentError.value(name, 'name', 'must not be empty');
+    }
+    return _update(
+      id,
+      (h, _) => h.copyWith(
+        name: trimmed,
+        flowerId: flowerId,
+        reminderMinutes: reminderMinutes,
+      ),
+    );
+  }
+
   Future<void> freshStart(String id) => _update(id, actions.freshStart);
 
   Future<void> replant(String id) => _update(id, actions.replant);

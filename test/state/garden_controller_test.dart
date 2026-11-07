@@ -79,4 +79,19 @@ void main() {
     expect(h.lost, isTrue);
     expect(h.wateredDays, {20000});
   });
+
+  test('editDetails changes name, flower, reminder; validates', () async {
+    final c = await make(prefs, () => 20000);
+    final g = c.read(gardenProvider.notifier);
+    await g.add(seed('a', 20000));
+    await g.editDetails('a', name: '  Read  ', flowerId: 'daisy');
+    var h = c.read(gardenProvider).single;
+    expect([h.name, h.flowerId, h.reminderMinutes], ['Read', 'daisy', -1]);
+    await g.editDetails('a', reminderMinutes: 540);
+    h = c.read(gardenProvider).single;
+    expect([h.name, h.reminderMinutes], ['Read', 540]);
+    expect(HabitStore(prefs).load().single.reminderMinutes, 540);
+    expect(() => g.editDetails('a', name: '  '), throwsArgumentError);
+    expect(() => g.editDetails('zz', name: 'x'), throwsStateError);
+  });
 }
