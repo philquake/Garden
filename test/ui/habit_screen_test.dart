@@ -26,6 +26,12 @@ class _FixedRandom implements Random {
   int nextInt(int max) => 0;
 }
 
+class _Throwing extends GardenController {
+  @override
+  Future<void> water(String id, {int? forDay}) =>
+      throw StateError('cannot water');
+}
+
 Habit _seed({int plantedAgo = 0}) => Habit.newSeed(
   id: 'h1',
   name: 'Read',
@@ -42,6 +48,7 @@ Habit _lost() => _seed(
 Future<void> _pump(
   WidgetTester tester,
   List<Habit> habits, {
+  bool throwing = false,
   String id = 'h1',
   double random = 0.9,
   bool disableAnimations = false,
@@ -56,6 +63,7 @@ Future<void> _pump(
         habitStoreProvider.overrideWithValue(store),
         todayProvider.overrideWithValue(() => _today),
         waterRandomProvider.overrideWithValue(_FixedRandom(random)),
+        if (throwing) gardenProvider.overrideWith(_Throwing.new),
       ],
       child: MaterialApp(
         theme: gardenTheme(),
@@ -220,6 +228,57 @@ void main() {
     await _tapFlower(tester);
     expect(find.byKey(const Key('water-visitor')), findsNothing);
     await tester.pump(const Duration(seconds: 1));
+  });
+
+  const gentle =
+      "That didn't go through. Your garden has been refreshed, "
+      'so please try again.';
+
+  testWidgets('failed flower tap shows a gentle message', (tester) async {
+    await _pump(tester, [_seed(plantedAgo: 20)], throwing: true);
+    final before = _progress(tester);
+    await _tapFlower(tester);
+    expect(find.text(gentle), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    expect(_progress(tester), before);
+    await tester.pump(const Duration(seconds: 1));
+  });
+
+  testWidgets('failed back-fill tap shows a gentle message', (tester) async {
+    await _pump(tester, [_seed(plantedAgo: 20)], throwing: true);
+    final before = _progress(tester);
+    await _tapVisible(tester, find.byKey(Key('backfill-${_today - 1}')));
+    expect(find.text(gentle), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    expect(_progress(tester), before);
+  });
+
+  testWidgets('back-fill cells are at least 44x44 on a phone', (tester) async {
+    tester.view.physicalSize = const Size(360, 780);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await _pump(tester, [_seed(plantedAgo: 20)]);
+    for (var d = _today - 3; d < _today; d++) {
+      final size = tester.getSize(
+        find.byKey(Key('backfill-$d'), skipOffstage: false),
+      );
+      expect(size.width, greaterThanOrEqualTo(44));
+      expect(size.height, greaterThanOrEqualTo(44));
+    }
+  });
+
+  testWidgets('flower and back-fill cells have semantic labels', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    addTearDown(handle.dispose);
+    await _pump(tester, [_seed(plantedAgo: 20)]);
+    expect(find.bySemanticsLabel('Water Read'), findsOneWidget);
+    // Day 19999 is a Thursday, 3 October 2024.
+    expect(
+      find.bySemanticsLabel('Mark Thursday, 3 October as watered'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('edit button calls onEdit', (tester) async {

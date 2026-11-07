@@ -26,11 +26,44 @@ class HabitScreen extends ConsumerStatefulWidget {
 class _HabitScreenState extends ConsumerState<HabitScreen> {
   int _waterTaps = 0;
 
-  void _water(Habit h) {
-    if (h.lost) return;
-    ref.read(gardenProvider.notifier).water(h.id);
-    setState(() => _waterTaps++);
+  /// Runs [action]; on any failure refreshes the garden and says so gently.
+  /// Returns whether it succeeded.
+  Future<bool> _attempt(Future<void> Function() action) async {
+    try {
+      await action();
+      return true;
+    } catch (_) {
+      // Fall through to the gentle recovery below.
+    }
+    if (!mounted) return false;
+    try {
+      await ref.read(gardenProvider.notifier).refresh();
+    } catch (_) {}
+    if (!mounted) return false;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text(
+            "That didn't go through. Your garden has been refreshed, "
+            'so please try again.',
+          ),
+        ),
+      );
+    return false;
   }
+
+  Future<void> _water(Habit h) async {
+    if (h.lost) return;
+    final ok = await _attempt(
+      () => ref.read(gardenProvider.notifier).water(h.id),
+    );
+    if (ok && mounted) setState(() => _waterTaps++);
+  }
+
+  Future<void> _backfill(Habit h, int day) => _attempt(
+    () => ref.read(gardenProvider.notifier).water(h.id, forDay: day),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -58,16 +91,24 @@ class _HabitScreenState extends ConsumerState<HabitScreen> {
               ),
               child: SafeArea(
                 child: Center(
-                  child: GestureDetector(
-                    key: const Key('habit-flower'),
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => _water(h),
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: WaterEffect(
-                        trigger: _waterTaps,
-                        random: ref.read(waterRandomProvider),
-                        child: _flower(h, art),
+                  child: Semantics(
+                    button: !h.lost,
+                    label: h.lost
+                        ? '${h.name} is resting. You can plant a new seed '
+                              'below.'
+                        : 'Water ${h.name}',
+                    excludeSemantics: true,
+                    child: GestureDetector(
+                      key: const Key('habit-flower'),
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _water(h),
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: WaterEffect(
+                          trigger: _waterTaps,
+                          random: ref.read(waterRandomProvider),
+                          child: _flower(h, art),
+                        ),
                       ),
                     ),
                   ),
@@ -85,16 +126,22 @@ class _HabitScreenState extends ConsumerState<HabitScreen> {
                   const SizedBox(height: 4),
                   Text(_scheduleWords(h.schedule)),
                   const SizedBox(height: 4),
-                  Text(
-                    '${progress.done} of ${progress.expected} this week',
-                    key: const Key('week-progress'),
-                    style: theme.textTheme.titleMedium,
+                  Semantics(
+                    label:
+                        '${progress.done} of ${progress.expected} '
+                        'waterings this week',
+                    excludeSemantics: true,
+                    child: Text(
+                      '${progress.done} of ${progress.expected} this week',
+                      key: const Key('week-progress'),
+                      style: theme.textTheme.titleMedium,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   _Calendar(
                     habit: h,
                     today: today,
-                    onBackfill: (d) => notifier.water(h.id, forDay: d),
+                    onBackfill: (d) => _backfill(h, d),
                   ),
                   const SizedBox(height: 16),
                   if (h.lost) ...[
@@ -180,6 +227,21 @@ const _dayNames = [
   'Sunday',
 ];
 
+const _monthNames = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
 String _scheduleWords(Schedule s) => switch (s.kind) {
   ScheduleKind.daily => 'Every day',
   ScheduleKind.timesPerWeek =>
@@ -204,18 +266,22 @@ class _Calendar extends StatelessWidget {
     return Column(
       key: const Key('habit-calendar'),
       children: [
-        Row(
-          children: [
-            for (final i in initials)
-              Expanded(
-                child: Center(
-                  child: Text(
-                    i,
-                    style: Theme.of(context).textTheme.labelMedium,
+        Semantics(
+          label: 'Calendar, weeks start on Monday',
+          excludeSemantics: true,
+          child: Row(
+            children: [
+              for (final i in initials)
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      i,
+                      style: Theme.of(context).textTheme.labelMedium,
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
         for (var r = 0; r < 5; r++)
           Row(
@@ -240,7 +306,7 @@ class _Calendar extends StatelessWidget {
     final date = DateTime.utc(1970).add(Duration(days: d));
     Widget cell = Container(
       key: ValueKey('cell-$d'),
-      height: 36,
+      height: 44,
       margin: const EdgeInsets.all(2),
       alignment: Alignment.center,
       decoration: BoxDecoration(
@@ -261,11 +327,25 @@ class _Calendar extends StatelessWidget {
         ),
       ),
     );
+    final label =
+        '${_dayNames[weekdayOf(d) - 1]}, ${date.day} '
+        '${_monthNames[date.month - 1]}';
     if (canBackfill) {
-      cell = GestureDetector(
-        key: ValueKey('backfill-$d'),
-        behavior: HitTestBehavior.opaque,
-        onTap: () => onBackfill(d),
+      cell = Semantics(
+        button: true,
+        label: 'Mark $label as watered',
+        excludeSemantics: true,
+        child: GestureDetector(
+          key: ValueKey('backfill-$d'),
+          behavior: HitTestBehavior.opaque,
+          onTap: () => onBackfill(d),
+          child: cell,
+        ),
+      );
+    } else {
+      cell = Semantics(
+        label: watered ? '$label, watered' : label,
+        excludeSemantics: true,
         child: cell,
       );
     }
