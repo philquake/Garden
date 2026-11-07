@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import 'meadow_painter.dart';
+import 'motion.dart';
 import 'theme.dart';
 
 /// Plays a watering animation over [child] each time [trigger] changes: wet
@@ -36,7 +37,7 @@ class _WaterEffectState extends State<WaterEffect>
   void didUpdateWidget(WaterEffect old) {
     super.didUpdateWidget(old);
     if (widget.trigger == old.trigger) return;
-    _still = MediaQuery.of(context).disableAnimations;
+    _still = reduceMotion(context);
     _visitor = !_still && _random.nextDouble() < 0.3;
     _bee = _random.nextBool();
     _c.duration = Duration(milliseconds: _still ? 200 : 900);

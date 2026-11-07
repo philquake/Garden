@@ -7,6 +7,7 @@ import 'package:garden/domain/schedule.dart';
 import 'package:garden/state/garden_controller.dart';
 import 'package:garden/ui/meadow_painter.dart';
 import 'package:garden/ui/meadow_screen.dart';
+import 'package:garden/ui/motion.dart';
 import 'package:garden/ui/theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -29,6 +30,7 @@ Future<void> _pump(
   bool disableAnimations = false,
   void Function(String)? onOpen,
   VoidCallback? onPlant,
+  int Function()? today,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
@@ -38,7 +40,7 @@ Future<void> _pump(
     ProviderScope(
       overrides: [
         habitStoreProvider.overrideWithValue(store),
-        todayProvider.overrideWithValue(() => _today),
+        todayProvider.overrideWithValue(today ?? () => _today),
       ],
       child: MaterialApp(
         theme: gardenTheme(),
@@ -116,5 +118,50 @@ void main() {
       expect(p.dx, inInclusiveRange(0, 1200));
       expect(p.dy, inInclusiveRange(600 * 0.4, 600));
     }
+  });
+
+  testWidgets('platform Reduce Motion counts as reduced motion', (
+    tester,
+  ) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(reduceMotion: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    await _pump(tester, 2);
+    final context = tester.element(find.byType(MeadowScreen));
+    expect(MediaQuery.disableAnimationsOf(context), isFalse);
+    expect(reduceMotion(context), isTrue);
+    expect(find.byKey(const Key('insect')), findsNothing);
+  });
+
+  testWidgets('each flower reads its name, stage and health; tap opens it', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    String? opened;
+    await _pump(tester, 2, onOpen: (id) => opened = id);
+    tester.semantics.tap(find.semantics.byLabel('Habit h1, seed, healthy'));
+    expect(opened, 'h1');
+    handle.dispose();
+  });
+
+  testWidgets('coming back to the app moves the garden to the new day', (
+    tester,
+  ) async {
+    var day = _today;
+    await _pump(tester, 1, today: () => day);
+    final c = ProviderScope.containerOf(
+      tester.element(find.byType(MeadowScreen)),
+    );
+    expect(c.read(gardenProvider).single.evaluatedDay, _today);
+    day = _today + 5;
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump();
+    final h = c.read(gardenProvider).single;
+    expect(h.evaluatedDay, _today + 5);
+    expect(h.missedSinceWater, 4);
   });
 }

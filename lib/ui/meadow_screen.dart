@@ -12,6 +12,7 @@ import '../state/art_provider.dart';
 import '../state/banner_provider.dart';
 import '../state/garden_controller.dart';
 import 'meadow_painter.dart';
+import 'motion.dart';
 import 'theme.dart';
 
 class MeadowScreen extends ConsumerStatefulWidget {
@@ -45,7 +46,7 @@ class _MeadowScreenState extends ConsumerState<MeadowScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _still = MediaQuery.of(context).disableAnimations;
+    _still = reduceMotion(context);
     if (_still) {
       _t.stop();
     } else if (!_t.isAnimating) {
@@ -250,25 +251,48 @@ class _MeadowScreenState extends ConsumerState<MeadowScreen>
       left: base.dx - 60,
       top: base.dy - size,
       width: 120,
-      child: GestureDetector(
-        key: ValueKey('flower-${h.id}'),
-        behavior: HitTestBehavior.opaque,
+      child: Semantics(
+        button: true,
+        label: '${h.name}, ${_stageWords[stage]}, ${_healthWords(h)}',
         onTap: () => widget.onOpenHabit(h.id),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            image,
-            Text(
-              h.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelMedium,
-            ),
-          ],
+        excludeSemantics: true,
+        child: GestureDetector(
+          key: ValueKey('flower-${h.id}'),
+          behavior: HitTestBehavior.opaque,
+          onTap: () => widget.onOpenHabit(h.id),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              image,
+              Text(
+                h.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+
+  static const _stageWords = [
+    'seed',
+    'sprout',
+    'bud',
+    'young bloom',
+    'full bloom',
+  ];
+
+  static String _healthWords(Habit h) => h.lost
+      ? 'resting'
+      : switch (healthOf(h)) {
+          FlowerHealth.healthy => 'healthy',
+          FlowerHealth.thirsty => 'thirsty',
+          FlowerHealth.wilting => 'wilting',
+          FlowerHealth.petalLoss => 'losing petals',
+        };
 
   List<Widget> _insects(double w, double hgt) {
     // (bee?, cycles per loop, phase, base y fraction)
