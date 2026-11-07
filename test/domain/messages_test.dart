@@ -116,4 +116,29 @@ void main() {
     expect(bannerChoice([_h('a', missed: 3)], 4).tone, Tone.warm);
     expect(bannerChoice([_h('a', missed: 3)], 5).tone, Tone.smallStep);
   });
+
+  test('bannerSeed halves warm/smallStep days, keeps freshStart', () {
+    expect(bannerSeed(Tone.warm, 20000), 10000);
+    expect(bannerSeed(Tone.smallStep, 20001), 10000);
+    expect(bannerSeed(Tone.smallStep, -1), -1);
+    expect(bannerSeed(Tone.warm, -2), -1);
+    expect(bannerSeed(Tone.freshStart, 7), 7);
+  });
+
+  test('every warm and smallStep variant is reachable via the banner', () {
+    final warm = <String>{};
+    final small = <String>{};
+    for (var day = 0; day < 40; day++) {
+      final c = bannerChoice([_h('a', missed: 3)], day);
+      final m = encouragement(c.tone, bannerSeed(c.tone, day));
+      (c.tone == Tone.warm ? warm : small).add(m);
+    }
+    expect(warm.length, 10);
+    expect(small.length, 10);
+    expect(
+      small,
+      contains('Even one watering today is enough to start again.'),
+    );
+    expect(warm, contains('Your garden is still here, and so are you.'));
+  });
 }

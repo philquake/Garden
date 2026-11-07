@@ -39,6 +39,7 @@ Future<ProviderContainer> _pump(
   await store.save(habits);
   await tester.pumpWidget(
     ProviderScope(
+      key: UniqueKey(),
       overrides: [
         habitStoreProvider.overrideWithValue(store),
         todayProvider.overrideWithValue(() => today),
@@ -58,10 +59,15 @@ Future<ProviderContainer> _pump(
 }
 
 void main() {
-  testWidgets('hidden with no habits and with only two misses', (tester) async {
+  testWidgets('hidden with no habits', (tester) async {
     await _pump(tester, []);
     expect(find.byKey(_banner), findsNothing);
-    await _pump(tester, [_seed('a', 20000, 3)]);
+  });
+
+  testWidgets('hidden with only two misses', (tester) async {
+    final h = _seed('a', 20000, 3);
+    expect(h.missedSinceWater, 2);
+    await _pump(tester, [h]);
     expect(find.byKey(_banner), findsNothing);
   });
 
@@ -70,9 +76,17 @@ void main() {
   ) async {
     await _pump(tester, [_seed('a', 20000, 4)], today: 20000);
     expect(find.byKey(_banner), findsOneWidget);
-    expect(find.text(encouragement(Tone.warm, 20000)), findsOneWidget);
+    expect(
+      find.text(encouragement(Tone.warm, bannerSeed(Tone.warm, 20000))),
+      findsOneWidget,
+    );
     await _pump(tester, [_seed('a', 20001, 4)], today: 20001);
-    expect(find.text(encouragement(Tone.smallStep, 20001)), findsOneWidget);
+    expect(
+      find.text(
+        encouragement(Tone.smallStep, bannerSeed(Tone.smallStep, 20001)),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('dismiss hides it and it stays hidden after updates', (

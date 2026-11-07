@@ -87,3 +87,8 @@ bool isStruggling(List<Habit> habits) =>
     flower: null,
   );
 }
+
+/// Seed for [encouragement] on [today]. warm/smallStep are already chosen by
+/// day parity, so halve the day (floor) to reach every pool index.
+int bannerSeed(Tone tone, int today) =>
+    tone == Tone.freshStart ? today : (today - today % 2) ~/ 2;

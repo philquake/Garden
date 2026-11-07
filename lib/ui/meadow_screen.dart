@@ -165,10 +165,11 @@ class _MeadowScreenState extends ConsumerState<MeadowScreen>
   }
 
   Widget _banner(List<Habit> habits) {
-    final choice = bannerChoice(habits, ref.read(todayProvider)());
+    final today = ref.read(todayProvider)();
+    final choice = bannerChoice(habits, today);
     final text = encouragement(
       choice.tone,
-      ref.read(todayProvider)(),
+      bannerSeed(choice.tone, today),
       flower: choice.flower,
     );
     final id = choice.habitId;
