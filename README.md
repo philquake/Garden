@@ -58,7 +58,7 @@ iOS builds need a Mac.
 
 - Notification permission prompt and notifications actually firing
 - Reminders surviving a reboot
-- iOS build and the iPad orientation setting
+- iOS build (phones only: iPad is not a target device)
 - How the meadow feels at 60fps
 
 ## More
