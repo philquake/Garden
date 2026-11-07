@@ -2,12 +2,14 @@ import 'schedule.dart';
 
 /// Immutable habit state. Days are day indexes (see day.dart).
 class Habit {
-  const Habit({
+  // Not const: wateredDays is copied into an unmodifiable set so no caller can
+  // mutate a Habit (or earlier snapshots sharing the set) after construction.
+  Habit({
     required this.id,
     required this.name,
     required this.flowerId,
     required this.schedule,
-    required this.wateredDays,
+    required Set<int> wateredDays,
     required this.plantedDay,
     required this.plantingWaterings,
     required this.declineStep,
@@ -18,7 +20,7 @@ class Habit {
     required this.plantingNumber,
     required this.reminderMinutes,
     required this.ignoredReminders,
-  });
+  }) : wateredDays = Set.unmodifiable(wateredDays);
 
   /// A freshly planted seed; the planting day counts as a grace day.
   factory Habit.newSeed({

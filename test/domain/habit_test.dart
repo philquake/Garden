@@ -22,6 +22,32 @@ void main() {
     expect(h.lost, isFalse);
   });
 
+  group('wateredDays is unmodifiable', () {
+    final seed = Habit.newSeed(
+      id: 'a',
+      name: 'Read',
+      flowerId: 'tulip',
+      schedule: const Schedule.daily(),
+      today: 0,
+    );
+
+    test('on a newSeed habit', () {
+      expect(() => seed.wateredDays.add(1), throwsUnsupportedError);
+    });
+    test('on a fromJson habit', () {
+      final h = Habit.fromJson(seed.copyWith(wateredDays: {0}).toJson());
+      expect(() => h.wateredDays.add(1), throwsUnsupportedError);
+    });
+    test('on a copyWith habit, which keeps a defensive copy', () {
+      final days = {0, 1};
+      final h = seed.copyWith(wateredDays: days);
+      expect(() => h.wateredDays.add(2), throwsUnsupportedError);
+      expect(() => h.wateredDays.remove(0), throwsUnsupportedError);
+      days.add(2);
+      expect(h.wateredDays, {0, 1});
+    });
+  });
+
   test('JSON round-trip through a string', () {
     final h = Habit.newSeed(
       id: 'a',
