@@ -59,6 +59,9 @@ class NotificationSync {
   Future<void> _once() async {
     try {
       final now = _ref.read(nowProvider)();
+      // nowMinutes is wall-clock but `today` is the 3am-shifted day index (at
+      // 01:30 on calendar day D, today = D-1); selectItems' isAfter(now)
+      // filter drops anything already past, so the combination is correct.
       final planned = planNotifications(
         _ref.read(gardenProvider),
         _ref.read(todayProvider)(),
