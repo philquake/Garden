@@ -7,6 +7,14 @@ import 'schedule.dart';
 
 int daysSinceWater(Habit h, int today) => today - h.lastWaterDay;
 
+/// Long enough without water for the gentle loss warnings (day 14 onwards).
+bool isWaiting(Habit h, int today) =>
+    !h.lost && daysSinceWater(h, today) >= Rules.warnDays.first;
+
+/// A fresh start is offered in petal loss or once the warnings begin.
+bool canFreshStart(Habit h, int today) =>
+    !h.lost && (h.declineStep >= 3 || isWaiting(h, today));
+
 /// Petals dropped so far; only while in petal loss (declineStep 3).
 int petalsLost(Habit h) =>
     h.declineStep == 3 ? max(0, h.missedSinceWater - Rules.petalMissed) : 0;

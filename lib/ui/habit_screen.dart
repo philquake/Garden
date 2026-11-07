@@ -5,6 +5,7 @@ import '../art/art_pack.dart';
 import '../domain/day.dart';
 import '../domain/growth.dart';
 import '../domain/habit.dart';
+import '../domain/neglect.dart';
 import '../domain/rules.dart';
 import '../domain/schedule.dart';
 import '../domain/week_progress.dart';
@@ -75,7 +76,21 @@ class _HabitScreenState extends ConsumerState<HabitScreen> {
     final notifier = ref.read(gardenProvider.notifier);
     final theme = Theme.of(context);
     final progress = weekProgress(h, today);
-    final struggling = h.declineStep >= 3 && !h.lost;
+    final waiting = isWaiting(h, today);
+    final freshStart = canFreshStart(h, today)
+        ? [
+            FilledButton(
+              key: const Key('fresh-start-button'),
+              onPressed: () => _attempt(() => notifier.freshStart(h.id)),
+              child: const Text('Give it a fresh start'),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Your flower comes back at the stage it had reached. '
+              'Your history stays.',
+            ),
+          ]
+        : const <Widget>[];
     return Scaffold(
       body: Column(
         children: [
@@ -168,6 +183,14 @@ class _HabitScreenState extends ConsumerState<HabitScreen> {
                     const SizedBox(height: 12),
                     _PausedCard(onChange: widget.onEdit),
                   ],
+                  if (waiting) ...[
+                    const SizedBox(height: 12),
+                    _WaitingCard(
+                      flower: h.flowerId.toLowerCase(),
+                      later: daysSinceWater(h, today) >= Rules.warnDays[1],
+                      children: freshStart,
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   _Calendar(
                     habit: h,
@@ -183,19 +206,8 @@ class _HabitScreenState extends ConsumerState<HabitScreen> {
                     ),
                     const SizedBox(height: 4),
                     const Text('Your history stays exactly as it is.'),
-                  ] else if (struggling) ...[
-                    FilledButton(
-                      key: const Key('fresh-start-button'),
-                      onPressed: () =>
-                          _attempt(() => notifier.freshStart(h.id)),
-                      child: const Text('Give it a fresh start'),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Your flower comes back at the stage it had reached. '
-                      'Your history stays.',
-                    ),
-                  ],
+                  ] else if (!waiting)
+                    ...freshStart,
                   const SizedBox(height: 8),
                   TextButton(
                     key: const Key('edit-button'),
@@ -274,6 +286,39 @@ class _PausedCard extends StatelessWidget {
               child: const Text('Change reminder'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Gentle note from day 14 without water, holding the fresh-start button.
+class _WaitingCard extends StatelessWidget {
+  const _WaitingCard({
+    required this.flower,
+    required this.later,
+    required this.children,
+  });
+  final String flower;
+  final bool later;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = later
+        ? 'There is still time. Your $flower is waiting for you, and a little '
+              'water helps. A fresh start is here whenever you like. '
+              'Your history stays.'
+        : 'Your $flower is waiting for you. A little water helps, or give it '
+              'a fresh start whenever you like. Your history stays.';
+    return Card(
+      key: const Key('loss-warning-card'),
+      color: skyMist,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [Text(text), const SizedBox(height: 8), ...children],
         ),
       ),
     );

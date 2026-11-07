@@ -3,6 +3,7 @@ import 'package:garden/domain/actions.dart';
 import 'package:garden/domain/growth.dart';
 import 'package:garden/domain/habit.dart';
 import 'package:garden/domain/neglect.dart';
+import 'package:garden/domain/rules.dart';
 import 'package:garden/domain/schedule.dart';
 
 Habit seed([Schedule s = const Schedule.daily()]) => Habit.newSeed(
@@ -83,6 +84,25 @@ void main() {
       expect(growthStage(f), growthStage(h));
       expect(f.wateredDays, h.wateredDays);
       expect(f.plantingWaterings, h.plantingWaterings);
+    });
+
+    test('allowed from day 14 without water, before petal loss', () {
+      final h = advance(seed(Schedule.weekday(1)), 114);
+      expect(h.declineStep, lessThan(3));
+      final f = freshStart(h, 114);
+      expect([f.declineStep, f.missedSinceWater, f.lastWaterDay], [0, 0, 114]);
+    });
+
+    test('throws at 13 days without water before petal loss', () {
+      final h = advance(seed(Schedule.weekday(1)), 113);
+      expect(h.declineStep, lessThan(3));
+      expect(() => freshStart(h, 113), throwsStateError);
+    });
+
+    test('available on every warning day, as the warning copy promises', () {
+      for (final w in Rules.warnDays) {
+        expect(freshStart(seed(Schedule.weekday(1)), 100 + w).lost, isFalse);
+      }
     });
 
     test('lost habit throws', () {

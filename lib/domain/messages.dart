@@ -1,4 +1,5 @@
 import 'habit.dart';
+import 'neglect.dart';
 
 enum Tone { warm, smallStep, freshStart }
 
@@ -60,6 +61,10 @@ String encouragement(Tone tone, int seed, {String? flower}) {
 bool isStruggling(List<Habit> habits) =>
     habits.where((h) => !h.lost).fold(0, (a, h) => a + h.missedSinceWater) >= 3;
 
+/// The banner shows when the garden is struggling or a flower is waiting.
+bool showsBanner(List<Habit> habits, int today) =>
+    isStruggling(habits) || habits.any((h) => isWaiting(h, today));
+
 ({Tone tone, String? habitId, String? flower}) bannerChoice(
   List<Habit> habits,
   int today,
@@ -72,6 +77,16 @@ bool isStruggling(List<Habit> habits) =>
         (h.declineStep == best.declineStep &&
             h.missedSinceWater > best.missedSinceWater)) {
       best = h;
+    }
+  }
+  // Otherwise the flower longest without water, once the warnings begin.
+  if (best == null) {
+    for (final h in habits) {
+      if (!isWaiting(h, today)) continue;
+      if (best == null ||
+          daysSinceWater(h, today) > daysSinceWater(best, today)) {
+        best = h;
+      }
     }
   }
   if (best != null) {

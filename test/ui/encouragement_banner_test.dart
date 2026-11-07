@@ -152,4 +152,50 @@ void main() {
     expect(find.byKey(_banner), findsNothing);
     handle.dispose();
   });
+
+  testWidgets('weekly habit 14 days dry shows a freshStart banner', (
+    tester,
+  ) async {
+    final h = advance(
+      Habit.newSeed(
+        id: 'w',
+        name: 'Swim',
+        flowerId: 'Daisy',
+        schedule: Schedule.weekday(1),
+        today: 20000 - 14,
+      ),
+      20000,
+    );
+    expect(isStruggling([h]), isFalse);
+    await _pump(tester, [h]);
+    expect(find.byKey(_banner), findsOneWidget);
+    expect(
+      find.text(encouragement(Tone.freshStart, 20000, flower: 'daisy')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('after a dismissal only a new fresh-start banner returns', (
+    tester,
+  ) async {
+    final c = await _pump(tester, [_seed('a', 20000, 4)]);
+    await tester.tap(find.byKey(_dismiss));
+    await tester.pump();
+    expect(find.byKey(_banner), findsNothing);
+    await c.read(gardenProvider.notifier).add(_seed('b', 20000, 10));
+    await tester.pump();
+    expect(
+      find.text(encouragement(Tone.freshStart, 20000, flower: 'tulip')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(_dismiss));
+    await tester.pump();
+    expect(find.byKey(_banner), findsNothing);
+    await c.read(gardenProvider.notifier).refresh();
+    await tester.pump();
+    expect(find.byKey(_banner), findsNothing);
+    await c.read(gardenProvider.notifier).add(_seed('c', 20000, 12));
+    await tester.pump();
+    expect(find.byKey(_banner), findsOneWidget);
+  });
 }

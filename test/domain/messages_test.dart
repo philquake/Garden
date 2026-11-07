@@ -141,4 +141,18 @@ void main() {
     );
     expect(warm, contains('Your garden is still here, and so are you.'));
   });
+
+  test('a flower waiting 14+ days shows the banner and gets freshStart', () {
+    Habit dry(String id, int last, {String flower = 'Tulip'}) =>
+        _h(id, flower: flower).copyWith(lastWaterDay: last);
+    final c = bannerChoice([dry('a', 90), dry('b', 85, flower: 'Rose')], 100);
+    expect(c.tone, Tone.freshStart);
+    expect(c.habitId, 'b');
+    expect(c.flower, 'rose');
+    // Petal loss still comes first.
+    expect(bannerChoice([dry('a', 80), _h('p', step: 3)], 100).habitId, 'p');
+    expect(showsBanner([dry('a', 86)], 100), isTrue);
+    expect(showsBanner([dry('a', 87)], 100), isFalse);
+    expect(showsBanner([dry('a', 80).copyWith(lost: true)], 100), isFalse);
+  });
 }

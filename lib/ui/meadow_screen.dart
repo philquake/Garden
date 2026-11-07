@@ -88,6 +88,9 @@ class _MeadowScreenState extends ConsumerState<MeadowScreen>
     final habits = ref.watch(gardenProvider);
     final art = ref.watch(artPackProvider);
     final dismissed = ref.watch(bannerDismissedProvider);
+    final today = ref.read(todayProvider)();
+    // freshStart is the only tone that names a habit.
+    final choice = bannerChoice(habits, today);
     final width = max(
       MediaQuery.sizeOf(context).width,
       150.0 * (habits.length + 1),
@@ -133,7 +136,8 @@ class _MeadowScreenState extends ConsumerState<MeadowScreen>
                 ),
               ),
             ),
-          if (!dismissed && isStruggling(habits))
+          if (showsBanner(habits, today) &&
+              !bannerHidden(dismissed, bannerKey(choice.habitId)))
             Positioned(
               left: 0,
               right: 0,
@@ -141,7 +145,7 @@ class _MeadowScreenState extends ConsumerState<MeadowScreen>
               child: SafeArea(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                  child: _banner(habits),
+                  child: _banner(choice, today),
                 ),
               ),
             ),
@@ -164,15 +168,18 @@ class _MeadowScreenState extends ConsumerState<MeadowScreen>
     );
   }
 
-  Widget _banner(List<Habit> habits) {
-    final today = ref.read(todayProvider)();
-    final choice = bannerChoice(habits, today);
+  Widget _banner(
+    ({Tone tone, String? habitId, String? flower}) choice,
+    int today,
+  ) {
     final text = encouragement(
       choice.tone,
       bannerSeed(choice.tone, today),
       flower: choice.flower,
     );
     final id = choice.habitId;
+    void dismiss() =>
+        ref.read(bannerDismissedProvider.notifier).dismiss(bannerKey(id));
     Widget message = Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 4, 12),
       child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
@@ -198,11 +205,11 @@ class _MeadowScreenState extends ConsumerState<MeadowScreen>
           Semantics(
             label: 'Dismiss message',
             button: true,
-            onTap: () => ref.read(bannerDismissedProvider.notifier).dismiss(),
+            onTap: dismiss,
             excludeSemantics: true,
             child: InkWell(
               key: const Key('dismiss-banner'),
-              onTap: () => ref.read(bannerDismissedProvider.notifier).dismiss(),
+              onTap: dismiss,
               child: const SizedBox(
                 width: 48,
                 height: 48,

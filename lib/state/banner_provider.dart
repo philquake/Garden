@@ -1,12 +1,21 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Whether the encouragement banner was dismissed this app run (in memory).
-final bannerDismissedProvider = NotifierProvider<BannerDismissed, bool>(
+/// Which encouragement banner was dismissed this app run (in memory), as
+/// [bannerKey]; null when none was.
+final bannerDismissedProvider = NotifierProvider<BannerDismissed, String?>(
   BannerDismissed.new,
 );
 
-class BannerDismissed extends Notifier<bool> {
+class BannerDismissed extends Notifier<String?> {
   @override
-  bool build() => false;
-  void dismiss() => state = true;
+  String? build() => null;
+  void dismiss(String key) => state = key;
 }
+
+/// `fresh:<habitId>` for a fresh-start banner, `general` otherwise.
+String bannerKey(String? freshStartHabitId) =>
+    freshStartHabitId == null ? 'general' : 'fresh:$freshStartHabitId';
+
+/// After a dismissal only a fresh-start banner for another flower shows.
+bool bannerHidden(String? dismissed, String key) =>
+    dismissed != null && (dismissed == key || !key.startsWith('fresh:'));

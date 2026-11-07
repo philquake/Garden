@@ -413,4 +413,59 @@ void main() {
     expect(find.byType(HabitScreen), findsNothing);
     expect(find.byKey(const Key('open')), findsOneWidget);
   });
+
+  group('loss warning card', () {
+    const card = Key('loss-warning-card');
+    // A weekly habit stays out of petal loss, so only the days dry matter.
+    Habit weekly(int dryDays) => Habit.newSeed(
+      id: 'h1',
+      name: 'Swim',
+      flowerId: 'Daisy',
+      schedule: Schedule.weekday(1),
+      today: _today - dryDays,
+    );
+
+    testWidgets('appears at day 14 with a working fresh start', (tester) async {
+      await _pump(tester, [weekly(14)]);
+      expect(find.byKey(card, skipOffstage: false), findsOneWidget);
+      expect(
+        find.textContaining(
+          'Your daisy is waiting for you.',
+          skipOffstage: false,
+        ),
+        findsOneWidget,
+      );
+      final button = find.byKey(const Key('fresh-start-button'));
+      expect(
+        find.descendant(of: find.byKey(card), matching: button),
+        findsOneWidget,
+      );
+      await _tapVisible(tester, button);
+      expect(find.byKey(card, skipOffstage: false), findsNothing);
+      expect(button, findsNothing);
+    });
+
+    testWidgets('absent at day 13 and when lost', (tester) async {
+      await _pump(tester, [weekly(13)]);
+      expect(find.byKey(card, skipOffstage: false), findsNothing);
+      expect(find.byKey(const Key('fresh-start-button')), findsNothing);
+      await _pump(tester, [_lost()]);
+      expect(find.byKey(card, skipOffstage: false), findsNothing);
+    });
+
+    testWidgets('gentler still from day 21; one button in petal loss', (
+      tester,
+    ) async {
+      await _pump(tester, [weekly(21)]);
+      expect(
+        find.textContaining('There is still time.', skipOffstage: false),
+        findsOneWidget,
+      );
+      await _pump(tester, [_seed(plantedAgo: 14)]);
+      expect(
+        find.byKey(const Key('fresh-start-button'), skipOffstage: false),
+        findsOneWidget,
+      );
+    });
+  });
 }

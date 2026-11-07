@@ -34,11 +34,11 @@ Habit _settle(Habit h, int today) {
   return a.copyWith(evaluatedDay: max(a.evaluatedDay, today));
 }
 
-/// Clears decline from petal loss; keeps stage and history.
+/// Clears decline (petal loss, or 14+ days dry); keeps stage and history.
 Habit freshStart(Habit h, int today) {
   final a = advance(h, today);
-  if (a.lost || a.declineStep < 3) {
-    throw StateError('Fresh start needs a flower in petal loss');
+  if (!canFreshStart(a, today)) {
+    throw StateError('Fresh start needs petal loss or 14 days without water');
   }
   return a.copyWith(
     declineStep: 0,
