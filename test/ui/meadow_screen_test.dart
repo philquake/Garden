@@ -25,7 +25,6 @@ Future<void> _pump(
   WidgetTester tester,
   int n, {
   bool disableAnimations = false,
-  List<String> opened = const [],
   void Function(String)? onOpen,
   VoidCallback? onPlant,
 }) async {
