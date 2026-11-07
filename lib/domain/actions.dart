@@ -11,8 +11,8 @@ Habit water(Habit h, int today, {int? forDay}) {
   if (day > today || day < today - Rules.backfillDays) {
     throw ArgumentError.value(forDay, 'forDay', 'outside back-fill window');
   }
-  if (h.lost) throw StateError('Habit is lost; replant first');
   final a = advance(h, today);
+  if (a.lost) throw StateError('Habit is lost; replant first');
   if (a.wateredDays.contains(day)) return a;
   return a.copyWith(
     wateredDays: {...a.wateredDays, day},
@@ -25,7 +25,13 @@ Habit water(Habit h, int today, {int? forDay}) {
 
 /// Settles misses under the old schedule, then swaps the schedule.
 Habit editSchedule(Habit h, Schedule s, int today) =>
-    advance(h, today).copyWith(schedule: s, evaluatedDay: today);
+    _settle(h, today).copyWith(schedule: s);
+
+// Advances, then pins evaluatedDay so a backward clock never rewinds state.
+Habit _settle(Habit h, int today) {
+  final a = advance(h, today);
+  return a.copyWith(evaluatedDay: max(a.evaluatedDay, today));
+}
 
 /// Clears decline from petal loss; keeps stage and history.
 Habit freshStart(Habit h, int today) {
@@ -36,8 +42,8 @@ Habit freshStart(Habit h, int today) {
   return a.copyWith(
     declineStep: 0,
     missedSinceWater: 0,
-    lastWaterDay: today,
-    evaluatedDay: today,
+    lastWaterDay: max(a.lastWaterDay, today),
+    evaluatedDay: max(a.evaluatedDay, today),
     lost: false,
   );
 }
@@ -50,8 +56,8 @@ Habit replant(Habit h, int today) {
     plantingWaterings: 0,
     declineStep: 0,
     missedSinceWater: 0,
-    lastWaterDay: today,
-    evaluatedDay: today,
+    lastWaterDay: max(a.lastWaterDay, today),
+    evaluatedDay: max(a.evaluatedDay, today),
     lost: false,
     plantingNumber: a.plantingNumber + 1,
   );

@@ -128,4 +128,56 @@ void main() {
       expect(h.declineStep, advance(seed(), 105).declineStep);
     });
   });
+
+  group('fix round 1', () {
+    test('water on a habit that goes lost through advance throws, no change',
+        () {
+      final h = seed();
+      expect(() => water(h, 130), throwsStateError);
+      expect(h.wateredDays, isEmpty);
+      expect(h.plantingWaterings, 0);
+    });
+
+    test('backward clock: editSchedule does not double count', () {
+      final h = advance(seed(), 105);
+      final e = editSchedule(h, const Schedule.daily(), 103);
+      expect(e.evaluatedDay, 105);
+      final end = advance(e, 108);
+      final expected = advance(h, 108);
+      expect(end.missedSinceWater, expected.missedSinceWater);
+      expect(end.declineStep, expected.declineStep);
+      expect(end.evaluatedDay, greaterThanOrEqualTo(h.evaluatedDay));
+    });
+
+    test('backward clock: freshStart keeps evaluatedDay and lastWaterDay', () {
+      final h = advance(seed(), 109);
+      final f = freshStart(h, 105);
+      expect(f.evaluatedDay, 109);
+      expect(f.lastWaterDay, greaterThanOrEqualTo(h.lastWaterDay));
+      expect(f.declineStep, 0);
+      final end = advance(f, 109);
+      expect(end.missedSinceWater, 0);
+      expect(end.evaluatedDay, 109);
+    });
+
+    test('backward clock: replant keeps evaluatedDay and lastWaterDay', () {
+      final h = advance(seed(), 150);
+      final r = replant(h, 140);
+      expect(r.evaluatedDay, 150);
+      expect(r.lastWaterDay, greaterThanOrEqualTo(h.lastWaterDay));
+      expect(r.lost, isFalse);
+      final end = advance(r, 150);
+      expect(end.missedSinceWater, 0);
+      expect(end.evaluatedDay, 150);
+    });
+
+    test('back-fill before lastWaterDay at step 2 drops to 1, keeps lastWaterDay',
+        () {
+      final h = advance(seed(), 105).copyWith(lastWaterDay: 104);
+      expect(h.declineStep, 2);
+      final w = water(h, 105, forDay: 102);
+      expect(w.declineStep, 1);
+      expect(w.lastWaterDay, 104);
+    });
+  });
 }
