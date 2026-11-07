@@ -4,12 +4,12 @@ import 'package:garden/domain/schedule.dart';
 void main() {
   test('perFourWeeks', () {
     expect(const Schedule.daily().perFourWeeks, 28);
-    expect(const Schedule.timesPerWeek(3).perFourWeeks, 12);
-    expect(const Schedule.weekday(2).perFourWeeks, 4);
+    expect(Schedule.timesPerWeek(3).perFourWeeks, 12);
+    expect(Schedule.weekday(2).perFourWeeks, 4);
   });
 
   test('json round-trip preserves kind and parameters', () {
-    for (final s in const [
+    for (final s in [
       Schedule.daily(),
       Schedule.timesPerWeek(5),
       Schedule.weekday(7),
@@ -19,7 +19,7 @@ void main() {
       expect(back.hashCode, s.hashCode);
       expect(back.kind, s.kind);
     }
-    expect(const Schedule.timesPerWeek(2), isNot(const Schedule.timesPerWeek(3)));
+    expect(Schedule.timesPerWeek(2), isNot(Schedule.timesPerWeek(3)));
   });
 
   test('invalid values throw ArgumentError', () {

@@ -2,23 +2,22 @@ enum ScheduleKind { daily, timesPerWeek, weekday }
 
 /// Immutable habit schedule. Weekdays use 1 = Monday .. 7 = Sunday.
 class Schedule {
-  const Schedule.daily()
-      : kind = ScheduleKind.daily,
-        _value = 0;
+  const Schedule.daily() : this._(ScheduleKind.daily, 0);
 
-  // The throw expressions make invalid values an ArgumentError at runtime and
-  // a compile error when used in a const context.
-  const Schedule.timesPerWeek(int n)
-      : kind = ScheduleKind.timesPerWeek,
-        _value = (n >= 1 && n <= 7)
-            ? n
-            : throw ArgumentError.value(n, 'n', 'must be 1..7');
+  const Schedule._(this.kind, this._value);
 
-  const Schedule.weekday(int weekday)
-      : kind = ScheduleKind.weekday,
-        _value = (weekday >= 1 && weekday <= 7)
-            ? weekday
-            : throw ArgumentError.value(weekday, 'weekday', 'must be 1..7');
+  // Factories (not const) so invalid values throw ArgumentError at runtime.
+  factory Schedule.timesPerWeek(int n) {
+    if (n < 1 || n > 7) throw ArgumentError.value(n, 'n', 'must be 1..7');
+    return Schedule._(ScheduleKind.timesPerWeek, n);
+  }
+
+  factory Schedule.weekday(int weekday) {
+    if (weekday < 1 || weekday > 7) {
+      throw ArgumentError.value(weekday, 'weekday', 'must be 1..7');
+    }
+    return Schedule._(ScheduleKind.weekday, weekday);
+  }
 
   final ScheduleKind kind;
   final int _value;
