@@ -25,3 +25,10 @@ flutter:
 
   assets:
     - assets/art/placeholder/
+
+  # Newsreader (SIL Open Font Licence, see assets/fonts/OFL.txt): the serif
+  # for headlines, so they look the same on every phone.
+  fonts:
+    - family: Newsreader
+      fonts:
+        - asset: assets/fonts/Newsreader.ttf

@@ -10,8 +10,8 @@ const dustyPink = Color(0xFFE3B5B5);
 const honey = Color(0xFFE8C46A);
 const inkBrown = Color(0xFF4E4036);
 
-const _serif = 'Georgia';
-const _serifFallback = ['Times New Roman', 'serif'];
+const _serif = 'Newsreader';
+const _serifFallback = ['serif'];
 
 /// Light only; a placeholder palette until the real artwork lands.
 ThemeData gardenTheme() {
