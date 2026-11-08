@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'schedule.dart';
 
 /// Immutable habit state. Days are day indexes (see day.dart).
@@ -19,7 +21,6 @@ class Habit {
     required this.lost,
     required this.plantingNumber,
     required this.reminderMinutes,
-    required this.ignoredReminders,
     this.reminderBaselineMissed = 0,
   }) : wateredDays = Set.unmodifiable(wateredDays);
 
@@ -46,7 +47,6 @@ class Habit {
     lost: false,
     plantingNumber: 1,
     reminderMinutes: reminderMinutes,
-    ignoredReminders: 0,
   );
 
   final String id;
@@ -67,11 +67,15 @@ class Habit {
 
   /// Minutes after midnight, or -1 for no reminder.
   final int reminderMinutes;
-  final int ignoredReminders;
 
   /// missedSinceWater when the reminder was last set or changed; misses up to
   /// here do not count as ignored reminders.
   final int reminderBaselineMissed;
+
+  /// Reminders ignored in a row: scheduled misses since the last watering or
+  /// reminder change (0 when the habit has no reminder).
+  int get ignoredReminders =>
+      reminderMinutes < 0 ? 0 : max(0, missedSinceWater - reminderBaselineMissed);
 
   Habit copyWith({
     String? id,
@@ -88,7 +92,6 @@ class Habit {
     bool? lost,
     int? plantingNumber,
     int? reminderMinutes,
-    int? ignoredReminders,
     int? reminderBaselineMissed,
   }) => Habit(
     id: id ?? this.id,
@@ -105,7 +108,6 @@ class Habit {
     lost: lost ?? this.lost,
     plantingNumber: plantingNumber ?? this.plantingNumber,
     reminderMinutes: reminderMinutes ?? this.reminderMinutes,
-    ignoredReminders: ignoredReminders ?? this.ignoredReminders,
     reminderBaselineMissed:
         reminderBaselineMissed ?? this.reminderBaselineMissed,
   );
@@ -125,7 +127,6 @@ class Habit {
     'lost': lost,
     'plantingNumber': plantingNumber,
     'reminderMinutes': reminderMinutes,
-    'ignoredReminders': ignoredReminders,
     'reminderBaselineMissed': reminderBaselineMissed,
   };
 
@@ -146,7 +147,6 @@ class Habit {
     lost: j['lost'] as bool,
     plantingNumber: j['plantingNumber'] as int,
     reminderMinutes: j['reminderMinutes'] as int,
-    ignoredReminders: j['ignoredReminders'] as int,
     // Absent in gardens saved before this field existed.
     reminderBaselineMissed: j['reminderBaselineMissed'] as int? ?? 0,
   );

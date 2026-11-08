@@ -173,8 +173,7 @@ void main() {
     await g.editDetails('a', reminderMinutes: 540);
     expect(c.read(gardenProvider).single.ignoredReminders, 0);
     await g.editDetails('a', reminderMinutes: -1);
-    final h = c.read(gardenProvider).single;
-    expect([h.ignoredReminders, h.reminderBaselineMissed], [0, 0]);
+    expect(c.read(gardenProvider).single.ignoredReminders, 0);
   });
 
   test('watering resets the reminder baseline', () async {

@@ -15,10 +15,6 @@ bool isWaiting(Habit h, int today) =>
 bool canFreshStart(Habit h, int today) =>
     !h.lost && (h.declineStep >= 3 || isWaiting(h, today));
 
-/// Petals dropped so far; only while in petal loss (declineStep 3).
-int petalsLost(Habit h) =>
-    h.declineStep == 3 ? max(0, h.missedSinceWater - Rules.petalMissed) : 0;
-
 /// Rolls neglect forward over every closed day in [evaluatedDay, today).
 /// A day only counts once it is over, and thresholds use days-since-water at
 /// the end of each day, so one big jump equals many small advances.
@@ -28,7 +24,15 @@ Habit advance(Habit h, int today) {
   var step = h.declineStep;
   var lost = h.lost;
   for (var d = h.evaluatedDay; d < today; d++) {
-    if (d <= h.lastWaterDay || h.wateredDays.contains(d)) continue;
+    // A watered Sunday still closes a times-a-week week (a quota check, not a
+    // missed day); the planting day stays a grace day.
+    final weekEnd =
+        h.schedule.kind == ScheduleKind.timesPerWeek &&
+        weekdayOf(d) == 7 &&
+        d > h.plantedDay;
+    if ((d <= h.lastWaterDay || h.wateredDays.contains(d)) && !weekEnd) {
+      continue;
+    }
     missed += _missesOn(h, d);
     final ds = d + 1 - h.lastWaterDay;
     final target = missed >= Rules.petalMissed && ds >= Rules.petalDays

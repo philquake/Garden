@@ -35,6 +35,7 @@ class HabitForm extends ConsumerStatefulWidget {
 
 class _HabitFormState extends ConsumerState<HabitForm> {
   late final _name = TextEditingController(text: widget.existing?.name ?? '');
+  late final _nameFocus = FocusNode();
   late String _flowerId;
   late ScheduleKind _kind;
   int _times = 3;
@@ -63,6 +64,7 @@ class _HabitFormState extends ConsumerState<HabitForm> {
   @override
   void dispose() {
     _name.dispose();
+    _nameFocus.dispose();
     super.dispose();
   }
 
@@ -221,9 +223,11 @@ class _HabitFormState extends ConsumerState<HabitForm> {
           TextField(
             key: const Key('name-field'),
             controller: _name,
+            focusNode: _nameFocus,
             maxLength: 30,
             textCapitalization: TextCapitalization.sentences,
             inputFormatters: [LengthLimitingTextInputFormatter(30)],
+            onTap: () => _nameFocus.requestFocus(),
             decoration: InputDecoration(
               labelText: 'What will you tend?',
               counterText: '',

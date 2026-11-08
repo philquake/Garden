@@ -20,28 +20,41 @@ class HabitStore {
   HabitStore(this._prefs);
   final SharedPreferences _prefs;
 
-  /// Returns [] on missing or corrupt data. Corrupt data is all-or-nothing:
-  /// the first bad copy is kept under `habits_corrupt` and `habits` is cleared.
+  /// Returns the readable habits. Unreadable ones are skipped (one bad habit
+  /// must not hide the rest), and the raw data is kept once under
+  /// `habits_corrupt`. If the whole value is unreadable, `habits` is cleared.
   List<Habit> load() {
     final raw = _prefs.get(_key);
     if (raw == null) return [];
+    final List<dynamic> items;
     try {
-      final habits = [
-        for (final e in jsonDecode(raw as String) as List)
-          Habit.fromJson(Map<String, dynamic>.from(e as Map)),
-      ];
-      final ids = habits.map((h) => h.id).toSet();
-      if (ids.length != habits.length || !habits.every(habitLooksValid)) {
-        throw const FormatException('invalid habits');
-      }
-      return habits;
+      items = jsonDecode(raw as String) as List<dynamic>;
     } catch (e) {
-      // shortcut: fire-and-forget writes; in-memory prefs update synchronously.
-      if (!_prefs.containsKey(_corruptKey)) {
-        _prefs.setString(_corruptKey, raw is String ? raw : raw.toString());
-      }
+      _setAside(raw);
       _prefs.remove(_key);
       return [];
+    }
+    final habits = <Habit>[];
+    final ids = <String>{};
+    var skipped = false;
+    for (final e in items) {
+      try {
+        final h = Habit.fromJson(Map<String, dynamic>.from(e as Map));
+        if (habitLooksValid(h) && ids.add(h.id)) {
+          habits.add(h);
+          continue;
+        }
+      } catch (_) {}
+      skipped = true;
+    }
+    if (skipped) _setAside(raw);
+    return habits;
+  }
+
+  // shortcut: fire-and-forget writes; in-memory prefs update synchronously.
+  void _setAside(Object raw) {
+    if (!_prefs.containsKey(_corruptKey)) {
+      _prefs.setString(_corruptKey, raw is String ? raw : raw.toString());
     }
   }
 

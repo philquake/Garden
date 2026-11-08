@@ -25,12 +25,15 @@ class Schedule {
   /// Times per week (timesPerWeek) or the weekday (weekday); 0 for daily.
   int get value => _value;
 
-  /// Expected completions in a 28-day window.
-  int get perFourWeeks => switch (kind) {
-    ScheduleKind.daily => 28,
-    ScheduleKind.timesPerWeek => 4 * _value,
-    ScheduleKind.weekday => 4,
+  /// Waterings the schedule asks for in one week.
+  int get perWeek => switch (kind) {
+    ScheduleKind.daily => 7,
+    ScheduleKind.timesPerWeek => _value,
+    ScheduleKind.weekday => 1,
   };
+
+  /// Expected completions in a 28-day window.
+  int get perFourWeeks => 4 * perWeek;
 
   Map<String, dynamic> toJson() => {
     'kind': kind.name,

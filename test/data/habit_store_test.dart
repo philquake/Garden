@@ -60,11 +60,14 @@ void main() {
     expect(p.getString('habits_corrupt'), isNotNull);
   });
 
-  test('out-of-range declineStep is corrupt', () async {
+  test('one unreadable habit is skipped; the others still load', () async {
     final raw = jsonEncode([h('a').toJson(), h('b', declineStep: 4).toJson()]);
     final (s, p) = await open({'habits': raw});
-    expect(s.load(), isEmpty);
+    expect(s.load().map((x) => x.id), ['a']);
     expect(p.getString('habits_corrupt'), raw);
+    // The next save writes only the readable habits.
+    await s.save(s.load());
+    expect(s.load().map((x) => x.id), ['a']);
   });
 
   test(
@@ -90,11 +93,12 @@ void main() {
     expect(p.containsKey('habits_corrupt'), isTrue);
   });
 
-  test('duplicate ids are corrupt', () async {
-    final (s, _) = await open({
+  test('duplicate ids keep the first and set the raw data aside', () async {
+    final (s, p) = await open({
       'habits': jsonEncode([h('a').toJson(), h('a').toJson()]),
     });
-    expect(s.load(), isEmpty);
+    expect(s.load().length, 1);
+    expect(p.containsKey('habits_corrupt'), isTrue);
   });
 
   test('second corrupt load keeps the first copy', () async {

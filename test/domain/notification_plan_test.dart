@@ -25,7 +25,7 @@ Habit h(
       today: planted ?? today - 30,
       reminderMinutes: reminder,
     ).copyWith(
-      ignoredReminders: ignored,
+      missedSinceWater: ignored,
       lost: lost,
       lastWaterDay: lastWater ?? today,
       wateredDays: watered,

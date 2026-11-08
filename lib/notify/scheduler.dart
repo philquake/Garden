@@ -14,8 +14,13 @@ class ScheduledItem {
 
 abstract class NotificationScheduler {
   Future<bool> requestPermission();
-  Future<void> cancelAll();
+
+  /// Schedules [items]; an item with an id already pending replaces it.
   Future<void> scheduleAll(List<ScheduledItem> items);
+
+  /// Cancels every pending notification whose id is not in [keep]. Called
+  /// after [scheduleAll], so a crash in between leaves old reminders, never none.
+  Future<void> cancelExcept(Set<int> keep);
 }
 
 class NoopScheduler implements NotificationScheduler {
@@ -23,9 +28,9 @@ class NoopScheduler implements NotificationScheduler {
   @override
   Future<bool> requestPermission() async => true;
   @override
-  Future<void> cancelAll() async {}
-  @override
   Future<void> scheduleAll(List<ScheduledItem> items) async {}
+  @override
+  Future<void> cancelExcept(Set<int> keep) async {}
 }
 
 /// Tapping a notification just opens the app; deep-linking is out of scope.
@@ -70,7 +75,11 @@ class LocalNotificationScheduler implements NotificationScheduler {
   }
 
   @override
-  Future<void> cancelAll() => _plugin.cancelAll();
+  Future<void> cancelExcept(Set<int> keep) async {
+    for (final r in await _plugin.pendingNotificationRequests()) {
+      if (!keep.contains(r.id)) await _plugin.cancel(id: r.id);
+    }
+  }
 
   @override
   Future<void> scheduleAll(List<ScheduledItem> items) async {

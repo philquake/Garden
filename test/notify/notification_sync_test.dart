@@ -84,7 +84,9 @@ void main() {
     final c = await _container(fake, habits: [_habit('a')]);
     c.read(notificationSyncProvider);
     await Future<void>.delayed(Duration.zero);
-    expect(fake.calls, ['cancel', 'schedule']);
+    expect(fake.calls, ['schedule', 'cancel']);
+    // Everything just scheduled is kept; only older ids can be cancelled.
+    expect(fake.kept.single, {for (final i in fake.scheduled.single) i.n.id});
     final expected = selectItems(
       planNotifications([_habit('a')], _today, nowMinutes: 360),
       _now,
@@ -97,7 +99,7 @@ void main() {
 
     await c.read(gardenProvider.notifier).add(_habit('b'));
     await Future<void>.delayed(Duration.zero);
-    expect(fake.calls, ['cancel', 'schedule', 'cancel', 'schedule']);
+    expect(fake.calls, ['schedule', 'cancel', 'schedule', 'cancel']);
     expect(
       fake.scheduled.last.length,
       greaterThan(fake.scheduled.first.length),
@@ -140,12 +142,12 @@ void main() {
     await c.read(gardenProvider.notifier).add(_habit('b'));
     await c.read(gardenProvider.notifier).add(_habit('c'));
     await Future<void>.delayed(Duration.zero);
-    expect(fake.calls, ['cancel']); // first replan still held
+    expect(fake.calls, ['schedule', 'cancel']); // first replan still held
     hold.complete();
     await Future<void>.delayed(const Duration(milliseconds: 10));
     expect(fake.maxRunning, 1);
     // One in-flight replan, then one more covering both later changes.
-    expect(fake.calls, ['cancel', 'schedule', 'cancel', 'schedule']);
+    expect(fake.calls, ['schedule', 'cancel', 'schedule', 'cancel']);
     final all = selectItems(
       planNotifications(
         [_habit('a'), _habit('b'), _habit('c')],

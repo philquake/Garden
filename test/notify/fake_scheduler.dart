@@ -7,10 +7,11 @@ class FakeScheduler implements NotificationScheduler {
   bool permission;
   final calls = <String>[];
   final scheduled = <List<ScheduledItem>>[];
+  final kept = <Set<int>>[];
   int permissionRequests = 0;
   bool throwing = false;
 
-  /// When set, the next cancelAll waits for it (to hold a replan open).
+  /// When set, the next cancelExcept waits for it (to hold a replan open).
   Completer<void>? hold;
   int running = 0;
   int maxRunning = 0;
@@ -22,10 +23,11 @@ class FakeScheduler implements NotificationScheduler {
   }
 
   @override
-  Future<void> cancelAll() async {
+  Future<void> cancelExcept(Set<int> keep) async {
     running++;
     if (running > maxRunning) maxRunning = running;
     calls.add('cancel');
+    kept.add(keep);
     try {
       if (throwing) throw StateError('boom');
       final h = hold;

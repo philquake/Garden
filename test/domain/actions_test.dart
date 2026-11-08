@@ -179,26 +179,20 @@ void main() {
       expect(end.evaluatedDay, greaterThanOrEqualTo(h.evaluatedDay));
     });
 
-    test('backward clock: freshStart keeps evaluatedDay and lastWaterDay', () {
+    test('clock behind: freshStart restarts from today, never frozen', () {
       final h = advance(seed(), 109);
       final f = freshStart(h, 105);
-      expect(f.evaluatedDay, 109);
-      expect(f.lastWaterDay, greaterThanOrEqualTo(h.lastWaterDay));
-      expect(f.declineStep, 0);
-      final end = advance(f, 109);
-      expect(end.missedSinceWater, 0);
-      expect(end.evaluatedDay, 109);
+      expect([f.evaluatedDay, f.lastWaterDay, f.declineStep], [105, 105, 0]);
+      // Not frozen: later days count again from the restart.
+      expect(advance(f, 108).missedSinceWater, 2);
     });
 
-    test('backward clock: replant keeps evaluatedDay and lastWaterDay', () {
-      final h = advance(seed(), 150);
-      final r = replant(h, 140);
-      expect(r.evaluatedDay, 150);
-      expect(r.lastWaterDay, greaterThanOrEqualTo(h.lastWaterDay));
-      expect(r.lost, isFalse);
-      final end = advance(r, 150);
-      expect(end.missedSinceWater, 0);
-      expect(end.evaluatedDay, 150);
+    test('a far-future clock does not freeze a replanted flower', () {
+      final lost = advance(seed(), 5000);
+      expect(lost.lost, isTrue);
+      final r = replant(lost, 120);
+      expect([r.evaluatedDay, r.lastWaterDay, r.lost], [120, 120, false]);
+      expect(advance(r, 123).declineStep, 1);
     });
 
     test(
@@ -211,5 +205,49 @@ void main() {
         expect(w.lastWaterDay, 104);
       },
     );
+  });
+
+  group('audit fixes', () {
+    test('editSchedule keeps the growth stage for every schedule pair', () {
+      final schedules = [
+        const Schedule.daily(),
+        for (var n = 1; n <= 7; n++) Schedule.timesPerWeek(n),
+        Schedule.weekday(1),
+      ];
+      for (final from in schedules) {
+        for (final to in schedules) {
+          for (var w = 0; w <= 60; w++) {
+            final h = seed(from).copyWith(plantingWaterings: w);
+            expect(
+              growthStage(editSchedule(h, to, 100)),
+              growthStage(h),
+              reason: '$w waterings, ${from.kind} -> ${to.kind}',
+            );
+          }
+        }
+      }
+    });
+
+    test('a late log of day 28 saves a flower that day 30 would lose', () {
+      final h = seed(); // last watered day 100
+      final saved = water(h, 130, forDay: 128);
+      expect(saved.lost, isFalse);
+      expect(saved.lastWaterDay, 128);
+      // Watering today, 30 days dry, is still too late.
+      expect(() => water(h, 130), throwsStateError);
+    });
+
+    test('extra waterings in a week add no growth beyond the weekly target', () {
+      // Day 102 is a Monday; a once-a-week habit asks for 1 watering a week.
+      var h = seed(Schedule.weekday(1));
+      for (final d in [103, 104, 105]) {
+        h = water(h, 105, forDay: d);
+      }
+      expect(h.wateredDays, {103, 104, 105});
+      expect(h.plantingWaterings, 1);
+      expect(growthStage(h), 1);
+      // The next week earns credit again.
+      expect(water(h, 110).plantingWaterings, 2);
+    });
   });
 }

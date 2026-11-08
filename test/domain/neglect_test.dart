@@ -45,7 +45,6 @@ void main() {
     test('day 8 is petal loss', () {
       final a = advance(h, 8);
       expect(a.declineStep, 3);
-      expect(petalsLost(a), a.missedSinceWater - 3);
     });
     test('day 29 is not lost, day 30 is lost', () {
       expect(advance(h, 29).lost, isFalse);
@@ -72,11 +71,6 @@ void main() {
       expect(identical(advance(a, 3), a), isTrue);
       expect(identical(advance(a, 5), a), isTrue);
     });
-  });
-
-  test('petalsLost is 0 below petal loss', () {
-    final h = planted(const Schedule.daily(), 0);
-    expect(petalsLost(advance(h, 7)), 0);
   });
 
   test('daysSinceWater counts from lastWaterDay', () {
@@ -123,6 +117,20 @@ void main() {
     test('no shortfall counted before Sunday closes', () {
       final h = planted(Schedule.timesPerWeek(3), monday);
       expect(advance(h, sunday).missedSinceWater, 0);
+    });
+    test('a week watered only on Sunday still falls short (1 of 3)', () {
+      final h = planted(
+        Schedule.timesPerWeek(3),
+        monday,
+        watered: {sunday},
+      ).copyWith(lastWaterDay: sunday);
+      final a = advance(h, sunday + 1);
+      expect(a.missedSinceWater, 2);
+      expect(a.declineStep, 1);
+    });
+    test('the planting day is a grace day even on a Sunday', () {
+      final h = planted(Schedule.timesPerWeek(3), sunday, watered: {});
+      expect(advance(h, sunday + 1).missedSinceWater, 0);
     });
   });
 }

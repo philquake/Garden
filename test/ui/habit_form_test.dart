@@ -119,6 +119,21 @@ void main() {
     expect(find.byType(HabitForm), findsOneWidget);
   });
 
+  testWidgets('tapping the name field opens the keyboard', (tester) async {
+    await _pump(tester);
+    await tester.tap(find.byKey(const Key('name-field')));
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('name-field')))
+          .focusNode!
+          .hasFocus,
+      isTrue,
+    );
+    expect(tester.testTextInput.isVisible, isTrue);
+  });
+
   testWidgets('saving plants a seed with chosen flower and schedule', (
     tester,
   ) async {

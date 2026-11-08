@@ -68,8 +68,11 @@ class NotificationSync {
         nowMinutes: now.hour * 60 + now.minute,
       );
       final scheduler = _ref.read(notificationSchedulerProvider);
-      await scheduler.cancelAll();
-      await scheduler.scheduleAll(selectItems(planned, now));
+      final items = selectItems(planned, now);
+      // Schedule first, then drop what is no longer planned: a crash between
+      // the two never leaves the garden without its loss warnings.
+      await scheduler.scheduleAll(items);
+      await scheduler.cancelExcept({for (final i in items) i.n.id});
     } catch (e) {
       debugPrint('Notification replan failed: $e');
     }
