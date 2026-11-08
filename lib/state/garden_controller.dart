@@ -32,8 +32,14 @@ class GardenController extends Notifier<List<Habit>> {
   }
 
   Future<void> _set(List<Habit> habits) async {
+    final before = state;
     state = habits;
-    await _store.save(habits);
+    try {
+      await _store.save(habits);
+    } catch (_) {
+      state = before;
+      rethrow;
+    }
   }
 
   Future<void> _update(String id, Habit Function(Habit h, int today) f) {

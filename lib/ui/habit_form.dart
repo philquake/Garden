@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../art/art_pack.dart';
+import '../domain/day.dart';
 import '../domain/habit.dart';
 import '../domain/ids.dart';
 import '../domain/rules.dart';
@@ -11,16 +11,7 @@ import '../notify/notification_sync.dart';
 import '../state/art_provider.dart';
 import '../state/garden_controller.dart';
 import 'theme.dart';
-
-const _dayNames = [
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
-  'Sunday',
-];
+import 'toast.dart';
 
 String _capitalise(String s) =>
     s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
@@ -35,7 +26,6 @@ class HabitForm extends ConsumerStatefulWidget {
 
 class _HabitFormState extends ConsumerState<HabitForm> {
   late final _name = TextEditingController(text: widget.existing?.name ?? '');
-  late final _nameFocus = FocusNode();
   late String _flowerId;
   late ScheduleKind _kind;
   int _times = 3;
@@ -64,7 +54,6 @@ class _HabitFormState extends ConsumerState<HabitForm> {
   @override
   void dispose() {
     _name.dispose();
-    _nameFocus.dispose();
     super.dispose();
   }
 
@@ -74,10 +63,6 @@ class _HabitFormState extends ConsumerState<HabitForm> {
     ScheduleKind.weekday => Schedule.weekday(_weekday),
   };
 
-  void _toast(String text) => ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(text)));
-
   /// Asked the first time a reminder is switched on, never at launch.
   Future<void> _askPermission() async {
     try {
@@ -85,7 +70,8 @@ class _HabitFormState extends ConsumerState<HabitForm> {
           .read(notificationSchedulerProvider)
           .requestPermission();
       if (!granted && mounted) {
-        _toast(
+        showToast(
+          context,
           "Notifications are off for Garden. You can turn them on in your "
           "phone's settings.",
         );
@@ -145,20 +131,14 @@ class _HabitFormState extends ConsumerState<HabitForm> {
     if (!mounted) return;
     setState(() => _saving = false);
     if (existing == null && ref.read(gardenProvider).length >= Rules.habitCap) {
-      _toast(
-        "Your garden is full for now. You can remove a flower you've "
-        'finished with to make room.',
-      );
+      showToast(context, gardenFullText);
       return;
     }
     try {
       await garden.refresh();
     } catch (_) {}
     if (!mounted) return;
-    _toast(
-      "That didn't go through. Your garden has been refreshed, "
-      'so please try again.',
-    );
+    showToast(context, retryText);
   }
 
   Future<void> _remove() async {
@@ -201,10 +181,7 @@ class _HabitFormState extends ConsumerState<HabitForm> {
       await ref.read(gardenProvider.notifier).refresh();
     } catch (_) {}
     if (!mounted) return;
-    _toast(
-      "That didn't go through. Your garden has been refreshed, "
-      'so please try again.',
-    );
+    showToast(context, retryText);
   }
 
   @override
@@ -223,11 +200,8 @@ class _HabitFormState extends ConsumerState<HabitForm> {
           TextField(
             key: const Key('name-field'),
             controller: _name,
-            focusNode: _nameFocus,
             maxLength: 30,
             textCapitalization: TextCapitalization.sentences,
-            inputFormatters: [LengthLimitingTextInputFormatter(30)],
-            onTap: () => _nameFocus.requestFocus(),
             decoration: InputDecoration(
               labelText: 'What will you tend?',
               counterText: '',
@@ -413,14 +387,14 @@ class _HabitFormState extends ConsumerState<HabitForm> {
     children: [
       for (var d = 1; d <= 7; d++)
         Semantics(
-          label: _dayNames[d - 1],
+          label: dayNames[d - 1],
           button: true,
           selected: _weekday == d,
           excludeSemantics: true,
           onTap: () => setState(() => _weekday = d),
           child: ChoiceChip(
             key: Key('weekday-$d'),
-            label: Text(_dayNames[d - 1].substring(0, 3)),
+            label: Text(dayNames[d - 1].substring(0, 3)),
             selected: _weekday == d,
             onSelected: (_) => setState(() => _weekday = d),
           ),

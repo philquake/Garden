@@ -13,6 +13,7 @@ import '../state/art_provider.dart';
 import '../state/garden_controller.dart';
 import '../state/water_random_provider.dart';
 import 'theme.dart';
+import 'toast.dart';
 import 'water_effect.dart';
 
 class HabitScreen extends ConsumerStatefulWidget {
@@ -41,16 +42,7 @@ class _HabitScreenState extends ConsumerState<HabitScreen> {
       await ref.read(gardenProvider.notifier).refresh();
     } catch (_) {}
     if (!mounted) return false;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text(
-            "That didn't go through. Your garden has been refreshed, "
-            'so please try again.',
-          ),
-        ),
-      );
+    showToast(context, retryText);
     return false;
   }
 
@@ -177,9 +169,7 @@ class _HabitScreenState extends ConsumerState<HabitScreen> {
                       style: theme.textTheme.titleMedium,
                     ),
                   ),
-                  if (h.reminderMinutes >= 0 &&
-                      h.ignoredReminders >= 3 &&
-                      !h.lost) ...[
+                  if (h.ignoredReminders >= 3 && !h.lost) ...[
                     const SizedBox(height: 12),
                     _PausedCard(onChange: widget.onEdit),
                   ],
@@ -243,7 +233,7 @@ class _HabitScreenState extends ConsumerState<HabitScreen> {
   );
 
   Widget _flower(Habit h, ArtPack art) {
-    final stage = h.lost ? 0 : growthStage(h);
+    final stage = displayStage(h);
     final frames = art.framesFor(h.flowerId, stage, healthOf(h));
     const size = 240.0;
     Widget image = frames.isEmpty
@@ -325,16 +315,6 @@ class _WaitingCard extends StatelessWidget {
   }
 }
 
-const _dayNames = [
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
-  'Sunday',
-];
-
 const _monthNames = [
   'January',
   'February',
@@ -354,7 +334,7 @@ String _scheduleWords(Schedule s) => switch (s.kind) {
   ScheduleKind.daily => 'Every day',
   ScheduleKind.timesPerWeek =>
     s.value == 1 ? 'Once a week' : '${s.value} times a week',
-  ScheduleKind.weekday => 'Every ${_dayNames[s.value - 1]}',
+  ScheduleKind.weekday => 'Every ${dayNames[s.value - 1]}',
 };
 
 class _Calendar extends StatelessWidget {
@@ -436,7 +416,7 @@ class _Calendar extends StatelessWidget {
       ),
     );
     final label =
-        '${_dayNames[weekdayOf(d) - 1]}, ${date.day} '
+        '${dayNames[weekdayOf(d) - 1]}, ${date.day} '
         '${_monthNames[date.month - 1]}';
     if (canBackfill) {
       cell = Semantics(

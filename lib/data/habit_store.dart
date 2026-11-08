@@ -58,10 +58,13 @@ class HabitStore {
     }
   }
 
+  /// Throws if the write fails, so a change is never shown as saved when the
+  /// disk refused it.
   Future<void> save(List<Habit> habits) async {
-    await _prefs.setString(
+    final ok = await _prefs.setString(
       _key,
       jsonEncode(habits.map((h) => h.toJson()).toList()),
     );
+    if (!ok) throw StateError('Could not save the garden');
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -14,6 +15,7 @@ import '../state/garden_controller.dart';
 import 'meadow_painter.dart';
 import 'motion.dart';
 import 'theme.dart';
+import 'toast.dart';
 
 class MeadowScreen extends ConsumerStatefulWidget {
   const MeadowScreen({
@@ -37,10 +39,18 @@ class _MeadowScreenState extends ConsumerState<MeadowScreen>
   );
   bool _still = false;
 
+  // Catches the 3am rollover while the app stays open; refresh does nothing
+  // until the day has changed.
+  late final Timer _tick = Timer.periodic(
+    const Duration(minutes: 1),
+    (_) => ref.read(gardenProvider.notifier).refresh(),
+  );
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _tick;
   }
 
   @override
@@ -72,22 +82,14 @@ class _MeadowScreenState extends ConsumerState<MeadowScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _tick.cancel();
     _t.dispose();
     super.dispose();
   }
 
   void _plant(int count) {
     if (count >= Rules.habitCap) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(
-            content: Text(
-              "Your garden is full for now. You can remove a flower you've "
-              'finished with to make room.',
-            ),
-          ),
-        );
+      showToast(context, gardenFullText);
     } else {
       widget.onPlant();
     }
@@ -234,8 +236,9 @@ class _MeadowScreenState extends ConsumerState<MeadowScreen>
 
   Widget _flower(Habit h, int i, ArtPack art, double w, double hgt) {
     final base = flowerPosition(h.id, i, w, hgt);
-    final stage = growthStage(h);
+    final stage = displayStage(h);
     final size = 56.0 + stage * 20;
+    final boxW = max(120.0, size);
     final frames = art.framesFor(h.flowerId, stage, healthOf(h));
     final phase = (stableHash(h.id) % 628) / 100;
     final angle = _still ? 0.0 : 0.05 * sin(2 * pi * _t.value * 4 + phase);
@@ -256,9 +259,9 @@ class _MeadowScreenState extends ConsumerState<MeadowScreen>
     // A lost habit stays tappable as a faded seed patch.
     if (h.lost) image = Opacity(opacity: 0.45, child: image);
     return Positioned(
-      left: base.dx - 60,
+      left: base.dx - boxW / 2,
       top: base.dy - size,
-      width: 120,
+      width: boxW,
       child: Semantics(
         button: true,
         label: '${h.name}, ${_stageWords[stage]}, ${_healthWords(h)}',

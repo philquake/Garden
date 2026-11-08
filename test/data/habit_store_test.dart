@@ -22,7 +22,16 @@ Future<(HabitStore, SharedPreferences)> open([
   return (HabitStore(p), p);
 }
 
+class _FullDisk extends Fake implements SharedPreferences {
+  @override
+  Future<bool> setString(String key, String value) async => false;
+}
+
 void main() {
+  test('save throws when the write is refused', () async {
+    expect(HabitStore(_FullDisk()).save([h('a')]), throwsStateError);
+  });
+
   test('save then load round-trips', () async {
     final (s, _) = await open();
     final hs = [h('a'), h('b', declineStep: 2)];

@@ -25,4 +25,14 @@ int weekIndex(int day) => _floorDiv(day + 3, 7);
 /// 1 = Monday .. 7 = Sunday.
 int weekdayOf(int day) => (day + 3) % 7 + 1;
 
+const dayNames = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+];
+
 int _floorDiv(int a, int b) => (a - (a % b)) ~/ b;

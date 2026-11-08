@@ -5,3 +5,6 @@ import 'rules.dart';
 /// avoid float rounding at exact boundaries.
 int growthStage(Habit h) => (h.plantingWaterings * 4 ~/ h.schedule.perFourWeeks)
     .clamp(0, Rules.stageCount - 1);
+
+/// What to draw: a lost flower goes back to a seed (its history stays).
+int displayStage(Habit h) => h.lost ? 0 : growthStage(h);

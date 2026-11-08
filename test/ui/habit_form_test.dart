@@ -126,8 +126,13 @@ void main() {
 
     expect(
       tester
-          .widget<TextField>(find.byKey(const Key('name-field')))
-          .focusNode!
+          .widget<EditableText>(
+            find.descendant(
+              of: find.byKey(const Key('name-field')),
+              matching: find.byType(EditableText),
+            ),
+          )
+          .focusNode
           .hasFocus,
       isTrue,
     );

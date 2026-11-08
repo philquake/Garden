@@ -21,7 +21,7 @@ Offset flowerPosition(
   double meadowHeight,
 ) {
   final h = stableHash(habitId);
-  final jx = ((h & 0xFFFF) / 0xFFFF - 0.5) * 50;
+  final jx = ((h & 0xFFFF) / 0xFFFF - 0.5) * 30;
   final fy = ((h >> 16) & 0xFFFF) / 0xFFFF;
   final x = (75 + index * 150 + jx)
       .clamp(40.0, max(40.0, meadowWidth - 40))
