@@ -1,243 +1,237 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/day.dart';
-import '../domain/habit.dart';
-import '../domain/neglect.dart';
-import '../domain/rules.dart';
+
+import '../domain/habit_config.dart';
+import '../domain/ids.dart';
 import '../domain/schedule.dart';
-import '../domain/week_progress.dart';
+import '../domain/stats.dart';
 import '../flower/flower_view.dart';
 import '../flower/look.dart';
 import '../state/garden_controller.dart';
-import '../state/water_random_provider.dart';
-import 'meadow_painter.dart';
+import 'charts.dart';
+import 'habit_card.dart';
+import 'habit_form.dart';
+import 'history.dart';
+import 'paywall.dart';
+import '../purchases/purchases.dart';
 import 'theme.dart';
 import 'toast.dart';
-import 'water_effect.dart';
+
+String _change(double d) {
+  final p = (d * 100).round();
+  return '${p > 0 ? '+' : ''}$p%';
+}
 
 class HabitScreen extends ConsumerStatefulWidget {
-  const HabitScreen({super.key, required this.habitId, required this.onEdit});
+  const HabitScreen({super.key, required this.habitId});
   final String habitId;
-  final VoidCallback onEdit;
 
   @override
   ConsumerState<HabitScreen> createState() => _HabitScreenState();
 }
 
 class _HabitScreenState extends ConsumerState<HabitScreen> {
-  int _waterTaps = 0;
-
-  // WaterEffect re-parents the flower while it plays; a global key keeps the
-  // flower's animation state across that.
-  final _flowerKey = GlobalKey();
-
-  /// Runs [action]; on any failure refreshes the garden and says so gently.
-  /// Returns whether it succeeded.
-  Future<bool> _attempt(Future<void> Function() action) async {
-    try {
-      await action();
-      return true;
-    } catch (_) {
-      // Fall through to the gentle recovery below.
-    }
-    if (!mounted) return false;
-    try {
-      await ref.read(gardenProvider.notifier).refresh();
-    } catch (_) {}
-    if (!mounted) return false;
-    showToast(context, retryText);
-    return false;
-  }
-
-  Future<void> _water(Habit h) async {
-    if (h.lost) return;
-    final ok = await _attempt(
-      () => ref.read(gardenProvider.notifier).water(h.id),
-    );
-    if (!ok || !mounted) return;
-    HapticFeedback.lightImpact();
-    setState(() => _waterTaps++);
-  }
-
-  Future<void> _backfill(Habit h, int day) => _attempt(
-    () => ref.read(gardenProvider.notifier).water(h.id, forDay: day),
-  );
+  Range _range = Range.month;
 
   @override
   Widget build(BuildContext context) {
-    final habits = ref.watch(gardenProvider);
-    final h = habits.where((e) => e.id == widget.habitId).firstOrNull;
-    if (h == null) return _missing(context);
-    final today = ref.read(todayProvider)();
-    final notifier = ref.read(gardenProvider.notifier);
+    final t = ref
+        .watch(gardenProvider)
+        .where((e) => e.config.id == widget.habitId)
+        .firstOrNull;
+    // Removed from under us: the form pops to the first route, this is a guard.
+    if (t == null) return const Scaffold();
+    final today = ref.watch(todayProvider);
+    final c = t.config;
+    final s = t.stats(today);
     final theme = Theme.of(context);
-    final progress = weekProgress(h, today);
-    final waiting = isWaiting(h, today);
-    final freshStart = canFreshStart(h, today)
-        ? [
-            FilledButton(
-              key: const Key('fresh-start-button'),
-              onPressed: () => _attempt(() => notifier.freshStart(h.id)),
-              child: const Text('Give it a fresh start'),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Your flower comes back at the stage it had reached. '
-              'Your history stays.',
-            ),
-          ]
-        : const <Widget>[];
+    final color = flowerColor(c.flowerId, theme.brightness);
+    final weekly = c.schedule.kind == ScheduleKind.timesPerWeek;
+    final unit = weekly ? 'weeks' : 'days';
+    final b = buckets(t, today, _range);
+    final v = t.log[today];
+    final look = lookOf(c.flowerId, s, doneToday: v != null && c.goal.met(v));
+    final score = s.score;
+    final unlocked = ref.watch(unlockedProvider);
     return Scaffold(
-      body: Column(
-        children: [
-          Expanded(
-            child: Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [skyBlue, skyMist, sageLight],
-                ),
-              ),
-              child: SafeArea(
-                child: Stack(
-                  children: [
-                    Center(
-                      child: Semantics(
-                        button: !h.lost,
-                        label: h.lost
-                            ? '${h.name} is resting. You can plant a new seed '
-                                  'below.'
-                            : 'Water ${h.name}',
-                        onTap: h.lost ? null : () => _water(h),
-                        excludeSemantics: true,
-                        child: GestureDetector(
-                          key: const Key('habit-flower'),
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () => _water(h),
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: WaterEffect(
-                              trigger: _waterTaps,
-                              random: ref.read(waterRandomProvider),
-                              child: FlowerView(
-                                key: _flowerKey,
-                                look: lookOf(h, today),
-                                size: 240,
-                                seed: stableHash(h.id),
-                                delightTrigger: _waterTaps,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 4,
-                      left: 4,
-                      child: Semantics(
-                        button: true,
-                        label: 'Back',
-                        excludeSemantics: true,
-                        onTap: () => Navigator.of(context).maybePop(),
-                        child: IconButton(
-                          key: const Key('habit-back-button'),
-                          tooltip: 'Back',
-                          constraints: const BoxConstraints(
-                            minWidth: 48,
-                            minHeight: 48,
-                          ),
-                          icon: const Icon(Icons.arrow_back_rounded),
-                          onPressed: () => Navigator.of(context).maybePop(),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(h.name, style: theme.textTheme.headlineSmall),
-                  const SizedBox(height: 4),
-                  Text(_scheduleWords(h.schedule)),
-                  const SizedBox(height: 4),
-                  Semantics(
-                    label:
-                        '${progress.done} of ${progress.expected} '
-                        'waterings this week',
-                    excludeSemantics: true,
-                    child: Text(
-                      '${progress.done} of ${progress.expected} this week',
-                      key: const Key('week-progress'),
-                      style: theme.textTheme.titleMedium,
-                    ),
-                  ),
-                  if (h.ignoredReminders >= 3 && !h.lost) ...[
-                    const SizedBox(height: 12),
-                    _PausedCard(onChange: widget.onEdit),
-                  ],
-                  if (waiting) ...[
-                    const SizedBox(height: 12),
-                    _WaitingCard(
-                      flower: h.flowerId.toLowerCase(),
-                      later: daysSinceWater(h, today) >= Rules.warnDays[1],
-                      children: freshStart,
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  _Calendar(
-                    habit: h,
-                    today: today,
-                    onBackfill: (d) => _backfill(h, d),
-                  ),
-                  const SizedBox(height: 16),
-                  if (h.lost) ...[
-                    FilledButton(
-                      key: const Key('replant-button'),
-                      onPressed: () => _attempt(() => notifier.replant(h.id)),
-                      child: const Text('Plant a new seed'),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text('Your history stays exactly as it is.'),
-                  ] else if (!waiting)
-                    ...freshStart,
-                  const SizedBox(height: 8),
-                  TextButton(
-                    key: const Key('edit-button'),
-                    onPressed: widget.onEdit,
-                    child: const Text('Edit'),
-                  ),
-                ],
-              ),
+      appBar: AppBar(
+        title: Text(c.name, overflow: TextOverflow.ellipsis),
+        actions: [
+          IconButton(
+            key: const Key('edit-habit'),
+            tooltip: 'Edit habit',
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => HabitForm(existing: c)),
             ),
           ),
         ],
       ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+        children: [
+          _Section(
+            child: Row(
+              children: [
+                ExcludeSemantics(
+                  child: FlowerView(
+                    look: look,
+                    size: 110,
+                    seed: stableHash(c.id),
+                    delightTrigger: (v ?? 0).round(),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        statusLine(t, s),
+                        key: const Key('status-line'),
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      if (progressLine(t, today) case final p?)
+                        Text(p, key: const Key('progress-line')),
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: LinearProgressIndicator(
+                          value: s.growth,
+                          minHeight: 8,
+                          color: color,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        s.formed
+                            ? 'Habit formed after $formedAfter days'
+                            : '${s.qualifyingDays} of $formedAfter days to '
+                                  'habit formed',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _Section(
+            title: 'Overview',
+            child: Row(
+              children: [
+                ScoreRing(score: score, color: color),
+                const Spacer(),
+                _Figure(
+                  _change(score - scoreAt(t, today - 30)),
+                  'Month',
+                  key: const Key('change-month'),
+                ),
+                const Spacer(),
+                _Figure(
+                  _change(score - scoreAt(t, today - 365)),
+                  'Year',
+                  key: const Key('change-year'),
+                ),
+                const Spacer(),
+                _Figure(
+                  '${s.totalCompletions}',
+                  'Total',
+                  key: const Key('total'),
+                ),
+              ],
+            ),
+          ),
+          if (unlocked) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: SegmentedButton<Range>(
+                key: const Key('range'),
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(value: Range.week, label: Text('Week')),
+                  ButtonSegment(value: Range.month, label: Text('Month')),
+                  ButtonSegment(value: Range.year, label: Text('Year')),
+                ],
+                selected: {_range},
+                onSelectionChanged: (r) => setState(() => _range = r.first),
+              ),
+            ),
+            _Section(
+              title: 'Score',
+              child: ScoreLine(buckets: b, range: _range, color: color),
+            ),
+            _Section(
+              title: 'History',
+              child: HistoryBars(buckets: b, range: _range, color: color),
+            ),
+          ] else ...const [
+            LockedCard(
+              title: 'Score and history',
+              what: 'See your score over time and how many days you did it, by week, month or year.',
+            ),
+          ],
+          _Section(
+            title: 'Calendar',
+            child: _MonthCalendar(
+              habit: t,
+              stats: s,
+              today: today,
+              color: color,
+              unlocked: unlocked,
+            ),
+          ),
+          if (unlocked)
+            _Section(
+              title: 'Best streaks',
+              child: s.bestRuns.isEmpty
+                  ? const Text('Your first streak starts with one day.')
+                  : Column(
+                      children: [
+                        for (final r in s.bestRuns)
+                          ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              '${r.length} ${r.length == 1 ? unit.substring(0, unit.length - 1) : unit}',
+                            ),
+                            trailing: Text('from ${shortDate(r.start)}'),
+                          ),
+                      ],
+                    ),
+            )
+          else
+            const LockedCard(
+              title: 'Best streaks',
+              what: 'Your longest runs, with when each one started.',
+            ),
+        ],
+      ),
     );
   }
+}
 
-  Widget _missing(BuildContext context) => Scaffold(
-    body: SafeArea(
-      child: Center(
+class _Section extends StatelessWidget {
+  const _Section({this.title, required this.child});
+  final String? title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('This flower is no longer in your garden.'),
-            const SizedBox(height: 12),
-            FilledButton(
-              key: const Key('back-button'),
-              onPressed: () => Navigator.maybePop(context),
-              child: const Text('Back'),
-            ),
+            if (title != null) ...[
+              Text(title!, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 12),
+            ],
+            child,
           ],
         ),
       ),
@@ -245,193 +239,188 @@ class _HabitScreenState extends ConsumerState<HabitScreen> {
   );
 }
 
-class _PausedCard extends StatelessWidget {
-  const _PausedCard({required this.onChange});
-  final VoidCallback onChange;
+class _Figure extends StatelessWidget {
+  const _Figure(this.value, this.label, {super.key});
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    container: true,
+    label: '$label $value',
+    excludeSemantics: true,
+    child: Column(
+      children: [
+        Text(value, style: Theme.of(context).textTheme.titleMedium),
+        Text(label, style: Theme.of(context).textTheme.bodySmall),
+      ],
+    ),
+  );
+}
+
+/// One month at a time; tap a day to log or fix it.
+class _MonthCalendar extends ConsumerStatefulWidget {
+  const _MonthCalendar({
+    required this.habit,
+    required this.stats,
+    required this.today,
+    required this.color,
+    required this.unlocked,
+  });
+
+  final Tracked habit;
+  final Stats stats;
+  final bool unlocked;
+  final int today;
+  final Color color;
+
+  @override
+  ConsumerState<_MonthCalendar> createState() => _MonthCalendarState();
+}
+
+class _MonthCalendarState extends ConsumerState<_MonthCalendar> {
+  int _back = 0; // months before the current one
+
+  Future<void> _tap(int day) async {
+    final t = widget.habit;
+    if (t.config.isYesNo) {
+      try {
+        await ref
+            .read(gardenProvider.notifier)
+            .setValue(t.config.id, day, t.log.containsKey(day) ? null : 1);
+      } catch (_) {
+        if (mounted) showToast(context, retryText);
+      }
+    } else {
+      await editDay(context, ref, t, day);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      key: const Key('reminders-paused-card'),
-      color: sageLight,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final t = widget.habit;
+    final cur = dateOf(widget.today);
+    final first = DateTime.utc(cur.year, cur.month - _back, 1);
+    final firstDay = monthStartDay(first.year, first.month);
+    final daysIn = DateTime.utc(first.year, first.month + 1, 0).day;
+    final lead = first.weekday - 1;
+    final created = dateOf(t.config.createdDay);
+    final canGoBack =
+        DateTime.utc(
+          first.year,
+          first.month - 1,
+          1,
+        ).isAfter(DateTime.utc(created.year, created.month, 1)) ||
+        DateTime.utc(
+          first.year,
+          first.month - 1,
+          1,
+        ).isAtSameMomentAs(DateTime.utc(created.year, created.month, 1));
+    final marks = marksOf(t, widget.stats);
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Reminders are paused for now. Want to pick a gentler time?',
+            IconButton(
+              key: const Key('month-prev'),
+              tooltip: 'Previous month',
+              onPressed: !canGoBack
+                  ? null
+                  : widget.unlocked
+                  ? () => setState(() => _back++)
+                  : () => showPaywall(context, ref),
+              icon: const Icon(Icons.chevron_left),
             ),
-            const SizedBox(height: 8),
-            TextButton(
-              key: const Key('change-reminder-button'),
-              style: TextButton.styleFrom(minimumSize: const Size(44, 44)),
-              onPressed: onChange,
-              child: const Text('Change reminder'),
+            Text(
+              '${monthNames[first.month - 1]} ${first.year}',
+              key: const Key('month-title'),
+              style: theme.textTheme.titleMedium,
+            ),
+            IconButton(
+              key: const Key('month-next'),
+              tooltip: 'Next month',
+              onPressed: _back > 0 ? () => setState(() => _back--) : null,
+              icon: const Icon(Icons.chevron_right),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// Gentle note from day 14 without water, holding the fresh-start button.
-class _WaitingCard extends StatelessWidget {
-  const _WaitingCard({
-    required this.flower,
-    required this.later,
-    required this.children,
-  });
-  final String flower;
-  final bool later;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = later
-        ? 'There is still time. Your $flower is waiting for you, and a little '
-              'water helps. A fresh start is here whenever you like. '
-              'Your history stays.'
-        : 'Your $flower is waiting for you. A little water helps, or give it '
-              'a fresh start whenever you like. Your history stays.';
-    return Card(
-      key: const Key('loss-warning-card'),
-      color: skyMist,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [Text(text), const SizedBox(height: 8), ...children],
+        Row(
+          children: [
+            for (final d in const ['M', 'T', 'W', 'T', 'F', 'S', 'S'])
+              Expanded(
+                child: Center(child: Text(d, style: theme.textTheme.bodySmall)),
+              ),
+          ],
         ),
-      ),
-    );
-  }
-}
-
-const _monthNames = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
-
-String _scheduleWords(Schedule s) => switch (s.kind) {
-  ScheduleKind.daily => 'Every day',
-  ScheduleKind.timesPerWeek =>
-    s.value == 1 ? 'Once a week' : '${s.value} times a week',
-  ScheduleKind.weekday => 'Every ${dayNames[s.value - 1]}',
-};
-
-class _Calendar extends StatelessWidget {
-  const _Calendar({
-    required this.habit,
-    required this.today,
-    required this.onBackfill,
-  });
-  final Habit habit;
-  final int today;
-  final void Function(int day) onBackfill;
-
-  @override
-  Widget build(BuildContext context) {
-    final start = today - (weekdayOf(today) - 1) - 28;
-    const initials = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-    return Column(
-      key: const Key('habit-calendar'),
-      children: [
-        Semantics(
-          label: 'Calendar, weeks start on Monday',
-          excludeSemantics: true,
-          child: Row(
-            children: [
-              for (final i in initials)
-                Expanded(
-                  child: Center(
-                    child: Text(
-                      i,
-                      style: Theme.of(context).textTheme.labelMedium,
-                    ),
-                  ),
-                ),
-            ],
-          ),
+        GridView.count(
+          crossAxisCount: 7,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            for (var i = 0; i < lead; i++) const SizedBox.shrink(),
+            for (var n = 1; n <= daysIn; n++)
+              _cell(firstDay + n - 1, n, marks[firstDay + n - 1], theme),
+          ],
         ),
-        for (var r = 0; r < 5; r++)
-          Row(
-            children: [
-              for (var c = 0; c < 7; c++)
-                Expanded(child: _cell(start + r * 7 + c)),
-            ],
-          ),
       ],
     );
   }
 
-  Widget _cell(int d) {
-    final watered = habit.wateredDays.contains(d);
-    final dim = d > today || d < habit.plantedDay;
-    final canBackfill =
-        !habit.lost &&
-        !watered &&
-        d < today &&
-        d >= today - Rules.backfillDays &&
-        d >= habit.plantedDay;
-    final date = DateTime.utc(1970).add(Duration(days: d));
-    Widget cell = Container(
-      key: ValueKey('cell-$d'),
-      height: 44,
-      margin: const EdgeInsets.all(2),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: watered ? dustyPink : null,
-        border: d == today
-            ? Border.all(color: sageDeep, width: 2)
-            : canBackfill
-            ? Border.all(color: sage)
-            : null,
-      ),
-      child: Text(
-        '${date.day}',
-        key: watered ? ValueKey('watered-$d') : null,
-        style: TextStyle(
-          color: inkBrown.withValues(alpha: dim ? 0.3 : 1),
-          fontSize: 12,
+  Widget _cell(int day, int n, Mark? mark, ThemeData theme) {
+    final enabled =
+        day >= widget.habit.config.createdDay && day <= widget.today;
+    final color = widget.color;
+    final fill = switch (mark) {
+      Mark.met => color,
+      Mark.partial => color.withValues(alpha: 0.4),
+      _ => Colors.transparent,
+    };
+    final text = mark == Mark.met ? theme.colorScheme.onPrimary : null;
+    final state = switch (mark) {
+      Mark.met => 'done',
+      Mark.partial => 'partly done',
+      Mark.forgiven => 'forgiven',
+      _ => 'not done',
+    };
+    return Semantics(
+      button: enabled,
+      enabled: enabled,
+      label: '${shortDate(day)}, ${enabled ? state : 'not available'}',
+      excludeSemantics: true,
+      onTap: enabled ? () => _tap(day) : null,
+      child: Padding(
+        padding: const EdgeInsets.all(3),
+        child: InkWell(
+          key: Key('day-$day'),
+          customBorder: const CircleBorder(),
+          onTap: enabled ? () => _tap(day) : null,
+          child: Ink(
+            decoration: BoxDecoration(
+              color: fill,
+              shape: BoxShape.circle,
+              border: mark == Mark.forgiven
+                  ? Border.all(color: color, width: 2)
+                  : null,
+            ),
+            child: Center(
+              child: Text(
+                '$n',
+                style:
+                    TextStyle(
+                      color: text,
+                      fontWeight: day == widget.today ? FontWeight.w700 : null,
+                    ).copyWith(
+                      color: enabled
+                          ? text
+                          : theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                    ),
+              ),
+            ),
+          ),
         ),
       ),
     );
-    final label =
-        '${dayNames[weekdayOf(d) - 1]}, ${date.day} '
-        '${_monthNames[date.month - 1]}';
-    if (canBackfill) {
-      cell = Semantics(
-        button: true,
-        label: 'Mark $label as watered',
-        excludeSemantics: true,
-        onTap: () => onBackfill(d),
-        child: GestureDetector(
-          key: ValueKey('backfill-$d'),
-          behavior: HitTestBehavior.opaque,
-          onTap: () => onBackfill(d),
-          child: cell,
-        ),
-      );
-    } else {
-      cell = Semantics(
-        label: watered ? '$label, watered' : label,
-        excludeSemantics: true,
-        child: cell,
-      );
-    }
-    return cell;
   }
 }

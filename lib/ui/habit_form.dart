@@ -2,15 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/day.dart';
-import '../domain/habit.dart';
+import '../domain/habit_config.dart';
+import '../domain/format.dart';
 import '../domain/ids.dart';
-import '../domain/rules.dart';
 import '../domain/schedule.dart';
-import '../notify/notification_sync.dart';
+import '../domain/stats.dart';
 import '../flower/flower_view.dart';
 import '../flower/look.dart';
+import '../notify/notification_sync.dart';
+import '../purchases/purchases.dart';
 import '../state/garden_controller.dart';
-import 'theme.dart';
+import 'paywall.dart';
 import 'toast.dart';
 
 String _capitalise(String s) =>
@@ -18,7 +20,7 @@ String _capitalise(String s) =>
 
 class HabitForm extends ConsumerStatefulWidget {
   const HabitForm({super.key, this.existing});
-  final Habit? existing;
+  final HabitConfig? existing;
 
   @override
   ConsumerState<HabitForm> createState() => _HabitFormState();
@@ -26,13 +28,18 @@ class HabitForm extends ConsumerStatefulWidget {
 
 class _HabitFormState extends ConsumerState<HabitForm> {
   late final _name = TextEditingController(text: widget.existing?.name ?? '');
+  late final _target = TextEditingController(text: '1');
+  late final _unit = TextEditingController();
   late String _flowerId;
   late ScheduleKind _kind;
+  bool _numeric = false;
+  bool _atMost = false;
   int _times = 3;
   int _weekday = 1;
   bool _remind = false;
   int _minutes = 540;
   bool _nameError = false;
+  bool _targetError = false;
   bool _saving = false;
 
   @override
@@ -44,9 +51,14 @@ class _HabitFormState extends ConsumerState<HabitForm> {
     if (e != null) {
       if (_kind == ScheduleKind.timesPerWeek) _times = e.schedule.value;
       if (_kind == ScheduleKind.weekday) _weekday = e.schedule.value;
-      if (e.reminderMinutes >= 0) {
+      _numeric = !e.isYesNo;
+      _atMost = e.goal.atMost;
+      _target.text = formatNum(e.goal.target);
+      _unit.text = e.unit;
+      final r = e.reminderMinutes;
+      if (r != null) {
         _remind = true;
-        _minutes = e.reminderMinutes;
+        _minutes = r;
       }
     }
   }
@@ -54,6 +66,8 @@ class _HabitFormState extends ConsumerState<HabitForm> {
   @override
   void dispose() {
     _name.dispose();
+    _target.dispose();
+    _unit.dispose();
     super.dispose();
   }
 
@@ -72,7 +86,7 @@ class _HabitFormState extends ConsumerState<HabitForm> {
       if (!granted && mounted) {
         showToast(
           context,
-          "Notifications are off for Garden. You can turn them on in your "
+          'Notifications are off for Garden. You can turn them on in your '
           "phone's settings.",
         );
       }
@@ -86,59 +100,52 @@ class _HabitFormState extends ConsumerState<HabitForm> {
       context: context,
       initialTime: TimeOfDay(hour: _minutes ~/ 60, minute: _minutes % 60),
     );
-    if (t != null && mounted) setState(() => _minutes = t.hour * 60 + t.minute);
+    if (t != null && mounted) {
+      setState(() => _minutes = t.hour * 60 + t.minute);
+    }
   }
 
   Future<void> _save() async {
     if (_saving) return;
     final name = _name.text.trim();
-    if (name.isEmpty) {
-      setState(() => _nameError = true);
+    final target = _numeric
+        ? num.tryParse(_target.text.trim().replaceAll(',', '.'))
+        : 1;
+    final nameBad = name.isEmpty;
+    final targetBad = target == null || target < 0 || (target == 0 && !_atMost);
+    if (nameBad || targetBad) {
+      setState(() {
+        _nameError = nameBad;
+        _targetError = targetBad;
+      });
       return;
     }
     setState(() => _saving = true);
     final garden = ref.read(gardenProvider.notifier);
     final existing = widget.existing;
-    final reminder = _remind ? _minutes : -1;
+    final config = HabitConfig(
+      id: existing?.id ?? newHabitId(),
+      name: name,
+      flowerId: _flowerId,
+      schedule: _schedule,
+      goal: Goal(target: target, atMost: _numeric && _atMost),
+      unit: _numeric ? _unit.text.trim() : '',
+      createdDay: existing?.createdDay ?? ref.read(todayProvider),
+      reminderMinutes: _remind ? _minutes : null,
+    );
     try {
-      if (existing == null) {
-        await garden.add(
-          Habit.newSeed(
-            id: newHabitId(),
-            name: name,
-            flowerId: _flowerId,
-            schedule: _schedule,
-            today: ref.read(todayProvider)(),
-            reminderMinutes: reminder,
-          ),
-        );
-      } else {
-        if (_schedule != existing.schedule) {
-          await garden.editSchedule(existing.id, _schedule);
-        }
-        await garden.editDetails(
-          existing.id,
-          name: name,
-          flowerId: _flowerId,
-          reminderMinutes: reminder,
-        );
-      }
+      existing == null ? await garden.add(config) : await garden.update(config);
       if (mounted) Navigator.pop(context);
-      return;
+    } on FreeLimitReached {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      // Unlocking from here lets the person press Add habit again.
+      await showPaywall(context, ref);
     } catch (_) {
-      // Fall through to the gentle recovery below.
+      if (!mounted) return;
+      setState(() => _saving = false);
+      showToast(context, retryText);
     }
-    if (!mounted) return;
-    setState(() => _saving = false);
-    if (existing == null && ref.read(gardenProvider).length >= Rules.habitCap) {
-      showToast(context, gardenFullText);
-      return;
-    }
-    try {
-      await garden.refresh();
-    } catch (_) {}
-    if (!mounted) return;
-    showToast(context, retryText);
   }
 
   Future<void> _remove() async {
@@ -148,8 +155,7 @@ class _HabitFormState extends ConsumerState<HabitForm> {
       builder: (context) => AlertDialog(
         title: Text('Remove ${h.name}?'),
         content: const Text(
-          'This takes it out of your garden and deletes its history. '
-          'This cannot be undone.',
+          'This deletes the habit and its history. This cannot be undone.',
         ),
         actions: [
           TextButton(
@@ -171,17 +177,11 @@ class _HabitFormState extends ConsumerState<HabitForm> {
     if (remove != true || !mounted) return;
     try {
       await ref.read(gardenProvider.notifier).remove(h.id);
-      // The habit screen underneath would show an empty state; go home.
+      // The detail screen underneath would be empty; go home.
       if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
-      return;
     } catch (_) {
-      // Fall through to the gentle recovery below.
+      if (mounted) showToast(context, retryText);
     }
-    try {
-      await ref.read(gardenProvider.notifier).refresh();
-    } catch (_) {}
-    if (!mounted) return;
-    showToast(context, retryText);
   }
 
   @override
@@ -189,10 +189,7 @@ class _HabitFormState extends ConsumerState<HabitForm> {
     final theme = Theme.of(context);
     final isNew = widget.existing == null;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(isNew ? 'Plant a seed' : 'Edit habit'),
-        backgroundColor: paper,
-      ),
+      appBar: AppBar(title: Text(isNew ? 'New habit' : 'Edit habit')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         children: [
@@ -202,7 +199,7 @@ class _HabitFormState extends ConsumerState<HabitForm> {
             maxLength: 30,
             textCapitalization: TextCapitalization.sentences,
             decoration: InputDecoration(
-              labelText: 'What will you tend?',
+              labelText: 'What will you do?',
               counterText: '',
               errorText: _nameError ? 'Give your habit a name.' : null,
             ),
@@ -220,6 +217,26 @@ class _HabitFormState extends ConsumerState<HabitForm> {
               children: [for (final id in flowerKinds) _flowerChoice(id)],
             ),
           ),
+          const SizedBox(height: 24),
+          Text('How do you track it?', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          SegmentedButton<bool>(
+            key: const Key('type'),
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(
+                value: false,
+                label: Text('Yes or no', key: Key('type-yesno')),
+              ),
+              ButtonSegment(
+                value: true,
+                label: Text('A number', key: Key('type-number')),
+              ),
+            ],
+            selected: {_numeric},
+            onSelectionChanged: (s) => setState(() => _numeric = s.first),
+          ),
+          if (_numeric) ..._numberFields(),
           const SizedBox(height: 24),
           Text('How often?', style: theme.textTheme.titleMedium),
           _scheduleTile(
@@ -265,7 +282,7 @@ class _HabitFormState extends ConsumerState<HabitForm> {
           FilledButton(
             key: const Key('save-button'),
             onPressed: _saving ? null : _save,
-            child: Text(isNew ? 'Plant it' : 'Save'),
+            child: Text(isNew ? 'Add habit' : 'Save'),
           ),
           if (!isNew) ...[
             const SizedBox(height: 16),
@@ -274,10 +291,10 @@ class _HabitFormState extends ConsumerState<HabitForm> {
                 key: const Key('remove-button'),
                 style: TextButton.styleFrom(
                   minimumSize: const Size(44, 48),
-                  foregroundColor: inkBrown,
+                  foregroundColor: theme.colorScheme.onSurface,
                 ),
                 onPressed: _saving ? null : _remove,
-                child: const Text('Remove from garden'),
+                child: const Text('Remove habit'),
               ),
             ),
           ],
@@ -286,9 +303,55 @@ class _HabitFormState extends ConsumerState<HabitForm> {
     );
   }
 
+  List<Widget> _numberFields() => [
+    const SizedBox(height: 12),
+    SegmentedButton<bool>(
+      key: const Key('direction'),
+      showSelectedIcon: false,
+      segments: const [
+        ButtonSegment(value: false, label: Text('At least')),
+        ButtonSegment(value: true, label: Text('At most')),
+      ],
+      selected: {_atMost},
+      onSelectionChanged: (s) => setState(() => _atMost = s.first),
+    ),
+    const SizedBox(height: 12),
+    Row(
+      children: [
+        Expanded(
+          child: TextField(
+            key: const Key('target-field'),
+            controller: _target,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Each day',
+              errorText: _targetError ? 'Enter a number.' : null,
+            ),
+            onChanged: (_) {
+              if (_targetError) setState(() => _targetError = false);
+            },
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: TextField(
+            key: const Key('unit-field'),
+            controller: _unit,
+            maxLength: 12,
+            decoration: const InputDecoration(
+              labelText: 'Unit, like glasses',
+              counterText: '',
+            ),
+          ),
+        ),
+      ],
+    ),
+  ];
+
   Widget _flowerChoice(String id) {
     final selected = id == _flowerId;
     final name = _capitalise(id);
+    final scheme = Theme.of(context).colorScheme;
     return Semantics(
       key: Key('flower-choice-$id'),
       button: true,
@@ -303,10 +366,10 @@ class _HabitFormState extends ConsumerState<HabitForm> {
           margin: const EdgeInsets.only(right: 10),
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: selected ? sageLight : Colors.transparent,
+            color: selected ? scheme.primary.withValues(alpha: 0.12) : null,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: selected ? sageDeep : sageLight,
+              color: selected ? scheme.primary : scheme.outlineVariant,
               width: selected ? 3 : 1,
             ),
           ),
@@ -328,7 +391,6 @@ class _HabitFormState extends ConsumerState<HabitForm> {
     return ListTile(
       key: key,
       selected: selected,
-      selectedColor: sageDeep,
       leading: Icon(
         selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
       ),
