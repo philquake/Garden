@@ -20,30 +20,37 @@ Widget _host(
 
 void main() {
   for (final size in [56.0, 64.0, 240.0]) {
-    testWidgets('every look paints at $size px', (tester) async {
-      for (final kind in flowerKinds) {
-        for (var stage = 0; stage < 5; stage++) {
-          for (final face in Face.values) {
-            for (final pose in Pose.values) {
-              for (final bubble in [false, true]) {
-                final look = FlowerLook(
-                  kind: kind,
-                  stage: stage,
-                  face: face,
-                  pose: pose,
-                  bubble: bubble,
-                );
-                await tester.pumpWidget(_host(look, size: size));
-                await tester.pump(const Duration(milliseconds: 700));
-                expect(tester.takeException(), isNull, reason: '$look');
-              }
-            }
+    testWidgets('every mood and pose paints at $size px', (tester) async {
+      for (final face in Face.values) {
+        for (final pose in Pose.values) {
+          for (final bubble in [false, true]) {
+            final look = FlowerLook(
+              kind: 'daisy',
+              stage: 4,
+              face: face,
+              pose: pose,
+              bubble: bubble,
+            );
+            await tester.pumpWidget(_host(look, size: size));
+            await tester.pump(const Duration(milliseconds: 700));
+            expect(tester.takeException(), isNull, reason: '$look');
           }
         }
       }
       expect(tester.getSize(find.byType(FlowerView)), Size(size, size));
     });
   }
+
+  testWidgets('every plant at every stage paints', (tester) async {
+    for (final kind in flowerKinds) {
+      for (var stage = 0; stage < 5; stage++) {
+        final look = FlowerLook(kind: kind, stage: stage, face: Face.content);
+        await tester.pumpWidget(_host(look, size: 64));
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(tester.takeException(), isNull, reason: '$look');
+      }
+    }
+  });
 
   testWidgets('a seed paints, moving and still', (tester) async {
     await tester.pumpWidget(_host(_seed));

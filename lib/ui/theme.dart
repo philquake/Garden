@@ -1,26 +1,12 @@
 import 'package:flutter/material.dart';
 
-// Flower palette: used by the flower painter, in both light and dark themes.
-const paper = Color(0xFFF7F1E5);
-const skyBlue = Color(0xFFCFE0E8);
-const sageLight = Color(0xFFC9D9B5);
-const sage = Color(0xFF9DB58A);
-const sageDeep = Color(0xFF6F8F6A);
-const dustyPink = Color(0xFFE3B5B5);
-const honey = Color(0xFFE8C46A);
-const lavender = Color(0xFFB7A6D6);
-const inkBrown = Color(0xFF4E4036);
+import '../flower/plants.dart';
 
 /// Accent for a habit's charts and heatmap, taken from its flower. One shade
 /// per theme brightness so the dots stay readable on both backgrounds.
 Color flowerColor(String kind, Brightness b) {
-  final dark = b == Brightness.dark;
-  return switch (kind) {
-    'tulip' => dark ? const Color(0xFFF08FA8) : const Color(0xFFD9577A),
-    'sunflower' => dark ? const Color(0xFFF2C14E) : const Color(0xFFD99A0B),
-    'lavender' => dark ? const Color(0xFFB9A7E8) : const Color(0xFF7B63C2),
-    _ => dark ? const Color(0xFF5CCB98) : const Color(0xFF2E9E6C),
-  };
+  final p = plantOf(kind) ?? plantOf('daisy')!;
+  return b == Brightness.dark ? p.dark : p.light;
 }
 
 const _serif = 'Newsreader';

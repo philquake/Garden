@@ -61,7 +61,7 @@ void main() {
   });
 
   test('an unknown flower id falls back to the daisy', () {
-    expect(look(stats([], 4), flower: 'rose').kind, 'daisy');
+    expect(look(stats([], 4), flower: 'oak').kind, 'daisy');
   });
 
   test('the picker shows a happy full bloom', () {

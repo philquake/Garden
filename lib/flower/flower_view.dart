@@ -5,21 +5,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 import '../ui/motion.dart';
-import 'flower_painter.dart';
 import 'look.dart';
 
 const _growSeconds = 0.6;
-const _bendSeconds = 1.0;
 const _delightSeconds = 0.9;
 
-double _bendOf(Pose p) => switch (p) {
+/// How far a drooping plant leans, in radians.
+double _leanOf(Pose p) => switch (p) {
   Pose.upright => 0,
-  Pose.droop => 0.55,
-  Pose.slump => 1,
+  Pose.droop => 0.12,
+  Pose.slump => 0.24,
 };
 
-/// A live flower: sways, blinks, reacts to a watering and grows between
-/// stages. With reduced motion it stands still and only its look changes.
+String assetOf(FlowerLook look, [int? stage]) =>
+    'assets/plants/${look.kind}_${stage ?? look.stage}.png';
+
+/// A live plant: sways, leans when neglected, hops when watered and fades
+/// between growth stages. With reduced motion it stands still and only its
+/// picture changes.
 class FlowerView extends StatefulWidget {
   const FlowerView({
     super.key,
@@ -31,13 +34,13 @@ class FlowerView extends StatefulWidget {
 
   final FlowerLook look;
 
-  /// Width and height in logical pixels; the flower stands on the bottom.
+  /// Width and height in logical pixels; the plant stands on the bottom.
   final double size;
 
-  /// Offsets sway and blink so neighbours do not move in step.
+  /// Offsets the sway so neighbours do not move in step.
   final int seed;
 
-  /// Each change plays the just-watered reaction.
+  /// Each change plays the just-watered hop.
   final int delightTrigger;
 
   @override
@@ -54,22 +57,14 @@ class _FlowerViewState extends State<FlowerView>
   double _startedAt = 0;
   bool _still = false;
 
-  // Each tween runs from a value captured at a moment on the clock.
-  late double _stageFrom = widget.look.stage.toDouble();
+  late int _fromStage = widget.look.stage;
   double _stageAt = double.negativeInfinity;
-  late double _bendFrom = _bendOf(widget.look.pose);
-  double _bendAt = double.negativeInfinity;
   double _delightAt = double.negativeInfinity;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // A fresh start lifts the flower back upright the first time it shows.
-    if (widget.look.face == Face.hopeful) {
-      _bendFrom = _bendOf(Pose.droop);
-      _bendAt = 0;
-    }
   }
 
   @override
@@ -86,8 +81,8 @@ class _FlowerViewState extends State<FlowerView>
     _still = reduceMotion(context);
     if (_still) {
       _ticker.stop();
-      // Drop any tween in flight: the still flower shows its final look.
-      _stageAt = _bendAt = _delightAt = double.negativeInfinity;
+      // Drop any tween in flight: the still plant shows its final look.
+      _stageAt = _delightAt = double.negativeInfinity;
     } else if (!_ticker.isActive) {
       _startedAt = _now.value;
       _ticker.start();
@@ -100,28 +95,11 @@ class _FlowerViewState extends State<FlowerView>
     if (_still) return;
     final now = _now.value;
     if (widget.look.stage != old.look.stage) {
-      _stageFrom = _stage(now, old.look);
+      _fromStage = old.look.stage;
       _stageAt = now;
     }
-    if (widget.look.pose != old.look.pose) {
-      _bendFrom = _bend(now, old.look);
-      _bendAt = now;
-    }
-    if (widget.delightTrigger != old.delightTrigger) {
-      _delightAt = now;
-    }
+    if (widget.delightTrigger != old.delightTrigger) _delightAt = now;
   }
-
-  double _tween(double from, double to, double startedAt, double seconds) {
-    final t = ((_now.value - startedAt) / seconds).clamp(0.0, 1.0);
-    return lerpDouble(from, to, Curves.easeInOut.transform(t))!;
-  }
-
-  double _stage(double now, FlowerLook look) =>
-      _tween(_stageFrom, look.stage.toDouble(), _stageAt, _growSeconds);
-
-  double _bend(double now, FlowerLook look) =>
-      _tween(_bendFrom, _bendOf(look.pose), _bendAt, _bendSeconds);
 
   @override
   void dispose() {
@@ -131,50 +109,100 @@ class _FlowerViewState extends State<FlowerView>
     super.dispose();
   }
 
-  FlowerPainter _painter(double now) {
+  Widget _picture(String asset, double dpr) => Image.asset(
+    asset,
+    width: widget.size,
+    height: widget.size,
+    fit: BoxFit.contain,
+    cacheWidth: (widget.size * dpr).ceil().clamp(1, 384),
+    filterQuality: FilterQuality.medium,
+    gaplessPlayback: true,
+    excludeFromSemantics: true,
+    errorBuilder: (_, _, _) => SizedBox.square(dimension: widget.size),
+  );
+
+  Widget _frame(double now, double dpr) {
     final look = widget.look;
-    if (_still) {
-      return FlowerPainter(
-        look: look,
-        stage: look.stage.toDouble(),
-        bend: _bendOf(look.pose),
+    final fade = ((now - _stageAt) / _growSeconds).clamp(0.0, 1.0);
+    Widget picture = _picture(assetOf(look), dpr);
+    if (fade < 1) {
+      picture = Stack(
+        alignment: Alignment.bottomCenter,
+        children: [
+          Opacity(
+            opacity: 1 - Curves.easeInOut.transform(fade),
+            child: _picture(assetOf(look, _fromStage), dpr),
+          ),
+          Opacity(opacity: Curves.easeInOut.transform(fade), child: picture),
+        ],
       );
     }
-    final phase = (widget.seed % 628) / 100;
+    if (_still) return picture;
     // (sway size in radians, seconds per sway)
     final (amp, period) = switch (look.face) {
-      Face.asleep || Face.sleepy => (0.0, 1.0),
+      Face.asleep || Face.sleepy => (0.004, 8.0),
       Face.sad => (0.008, 9.0),
-      Face.worried => (0.02, 9.0),
-      Face.curious => (0.03, 6.0),
-      Face.hopeful => (0.03, 6.0),
-      Face.expectant => (0.035, 6.0),
-      Face.content => (0.04, 6.0),
-      Face.grin => (0.05, 6.0),
+      Face.worried => (0.015, 9.0),
+      Face.curious || Face.hopeful => (0.025, 6.0),
+      Face.expectant => (0.03, 6.0),
+      Face.content => (0.035, 6.0),
+      Face.grin => (0.04, 6.0),
     };
-    final blinkEvery = 3.5 + (widget.seed % 20) / 10;
-    final sinceBlink = (now + phase) % blinkEvery;
+    final phase = (widget.seed % 628) / 100;
     final d = (now - _delightAt) / _delightSeconds;
-    return FlowerPainter(
-      look: look,
-      stage: _stage(now, look),
-      bend: _bend(now, look),
-      sway: amp * sin(2 * pi * now / period + phase),
-      breathe: look.face == Face.sleepy ? sin(2 * pi * now / 4 + phase) : 0,
-      blink: sinceBlink < 0.16 ? sin(pi * sinceBlink / 0.16) : 0,
-      gaze: sin(2 * pi * now / 5 + phase),
-      delight: d >= 0 && d < 1 ? d : null,
+    final hop = d >= 0 && d < 1 ? sin(pi * d) : 0.0;
+    return Transform.translate(
+      offset: Offset(0, -hop * widget.size * 0.06),
+      child: Transform.rotate(
+        angle: _leanOf(look.pose) + amp * sin(2 * pi * now / period + phase),
+        alignment: Alignment.bottomCenter,
+        child: Transform.scale(
+          scale: lerpDouble(1, 1.08, hop)!,
+          alignment: Alignment.bottomCenter,
+          child: picture,
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final size = widget.size;
     return RepaintBoundary(
       child: SizedBox.square(
-        dimension: widget.size,
-        child: ValueListenableBuilder<double>(
-          valueListenable: _now,
-          builder: (context, now, _) => CustomPaint(painter: _painter(now)),
+        dimension: size,
+        child: Stack(
+          alignment: Alignment.bottomCenter,
+          children: [
+            Positioned.fill(
+              child: ValueListenableBuilder<double>(
+                valueListenable: _now,
+                builder: (context, now, _) => _frame(now, dpr),
+              ),
+            ),
+            if (widget.look.bubble)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Container(
+                  width: size * 0.28,
+                  height: size * 0.28,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFD6ECF7),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: Icon(
+                      Icons.water_drop,
+                      size: size * 0.17,
+                      color: const Color(0xFF3B8EC0),
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );

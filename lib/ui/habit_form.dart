@@ -9,14 +9,12 @@ import '../domain/schedule.dart';
 import '../domain/stats.dart';
 import '../flower/flower_view.dart';
 import '../flower/look.dart';
+import '../flower/plants.dart';
 import '../notify/notification_sync.dart';
 import '../purchases/purchases.dart';
 import '../state/garden_controller.dart';
 import 'paywall.dart';
 import 'toast.dart';
-
-String _capitalise(String s) =>
-    s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
 class HabitForm extends ConsumerStatefulWidget {
   const HabitForm({super.key, this.existing});
@@ -31,6 +29,7 @@ class _HabitFormState extends ConsumerState<HabitForm> {
   late final _target = TextEditingController(text: '1');
   late final _unit = TextEditingController();
   late String _flowerId;
+  late PlantGroup _group;
   late ScheduleKind _kind;
   bool _numeric = false;
   bool _atMost = false;
@@ -47,6 +46,7 @@ class _HabitFormState extends ConsumerState<HabitForm> {
     super.initState();
     final e = widget.existing;
     _flowerId = e?.flowerId ?? flowerKinds.first;
+    _group = plantOf(_flowerId)?.group ?? PlantGroup.flowering;
     _kind = e?.schedule.kind ?? ScheduleKind.daily;
     if (e != null) {
       if (_kind == ScheduleKind.timesPerWeek) _times = e.schedule.value;
@@ -208,13 +208,29 @@ class _HabitFormState extends ConsumerState<HabitForm> {
             },
           ),
           const SizedBox(height: 24),
-          Text('Pick a flower', style: theme.textTheme.titleMedium),
+          Text('Pick a plant', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final g in PlantGroup.values)
+                ChoiceChip(
+                  key: Key('plant-group-${g.name}'),
+                  label: Text(g.label),
+                  selected: g == _group,
+                  onSelected: (_) => setState(() => _group = g),
+                ),
+            ],
+          ),
           const SizedBox(height: 8),
           SizedBox(
-            height: 120,
+            height: 124,
             child: ListView(
               scrollDirection: Axis.horizontal,
-              children: [for (final id in flowerKinds) _flowerChoice(id)],
+              children: [
+                for (final p in plants)
+                  if (p.group == _group) _flowerChoice(p.id),
+              ],
             ),
           ),
           const SizedBox(height: 24),
@@ -350,7 +366,7 @@ class _HabitFormState extends ConsumerState<HabitForm> {
 
   Widget _flowerChoice(String id) {
     final selected = id == _flowerId;
-    final name = _capitalise(id);
+    final name = plantOf(id)?.name ?? id;
     final scheme = Theme.of(context).colorScheme;
     return Semantics(
       key: Key('flower-choice-$id'),

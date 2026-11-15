@@ -29,6 +29,9 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
+  assets:
+    - assets/plants/
+
   # Newsreader (SIL Open Font Licence, see assets/fonts/OFL.txt): the serif
   # for headlines, so they look the same on every phone.
   fonts:

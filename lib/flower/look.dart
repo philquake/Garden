@@ -1,9 +1,10 @@
 import 'dart:math';
 
 import '../domain/stats.dart';
+import 'plants.dart';
 
-/// Flower kinds, in picker order.
-const flowerKinds = ['tulip', 'sunflower', 'lavender', 'daisy'];
+/// Plant ids, in picker order.
+final flowerKinds = [for (final p in plants) p.id];
 
 enum Face {
   asleep,
