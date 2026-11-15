@@ -1,6 +1,10 @@
 # Garden redesign: Habit Leaf-style tracker with stats, forgiveness and one-time unlock
 
-Status: decisions confirmed by the user in a grilling session on 2026-11-15. No code written yet.
+Status: decisions confirmed by the user in a grilling session on 2026-11-15.
+Milestones 1-5 are built on branch `feat/habit-leaf-redesign` and covered by
+widget and unit tests; milestone 6 is drafted in `docs/store/listing-draft.md`.
+Not done: the real store purchase (RevenueCat), the analytics backend and crash
+reporting, and any run on a real device or emulator.
 
 ## Goal
 
@@ -29,7 +33,7 @@ Turn Garden from a watercolour meadow with a neglect/decline system into a card-
 - "Habit formed ✓" after 66 qualifying days. Flower grows in stages toward 66, stays in bloom after, and its mood follows the recent score.
 
 ### Pricing and paywall
-- Free download: 3 habits, basic stats, current-month history, forgiveness included.
+- Free download: 3 habits, overview stats (score ring, month/year change, total), the current month on the calendar, forgiveness included. Locked: score and history charts, best streaks, earlier months, CSV export, backup and restore.
 - One-time unlock at $9.99 via RevenueCat: unlimited habits (the cap of 8 is removed), all charts and history, CSV export, backup/transfer file.
 - Paywall appears only when adding a 4th habit or tapping a locked chart/export. Never at launch. Restore purchase is always in Settings.
 - Price basis: simple one-time habit apps $3.99-$5.99 (Streaks, Habito), lifetime unlocks $30-65 (HabitKit, Habitify), Leaf $9.99 lifetime. Sources disagree; re-check before release.
