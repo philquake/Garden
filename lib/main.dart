@@ -1,29 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
+import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sqflite/sqflite.dart';
 
 import 'analytics/analytics.dart';
 import 'app.dart';
-import 'data/garden_db.dart';
 import 'demo/demo.dart';
 import 'domain/day.dart';
 import 'notify/notification_sync.dart';
 import 'notify/scheduler.dart';
 import 'purchases/purchases.dart';
 import 'state/garden_controller.dart';
+import 'widget/widget_sync.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  final db = await GardenDb.open(
-    databaseFactory,
-    p.join(await getDatabasesPath(), demoMode ? 'garden_demo.db' : 'garden.db'),
-  );
+  final db = await openGardenDb();
   if (demoMode) await db.replaceAll(demoHabits(dayIndex(DateTime.now())));
   final habits = await db.loadAll();
+  HomeWidget.registerInteractivityCallback(widgetBackgroundCallback);
   final prefs = await SharedPreferences.getInstance();
   NotificationScheduler scheduler = const NoopScheduler();
   try {

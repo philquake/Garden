@@ -5,6 +5,7 @@ import '../data/garden_db.dart';
 import '../domain/day.dart';
 import '../domain/habit_config.dart';
 import '../purchases/purchases.dart';
+import '../widget/widget_data.dart';
 
 final gardenDbProvider = Provider<GardenDb>(
   (ref) => throw UnimplementedError('override gardenDbProvider'),
@@ -128,10 +129,12 @@ class GardenController extends Notifier<List<Tracked>> {
   Future<void> tap(String id) {
     final t = _find(id);
     final today = ref.read(todayProvider);
-    final now = t.log[today];
-    if (t.config.isYesNo) return setValue(id, today, now == null ? 1 : null);
-    return setValue(id, today, (now ?? 0) + 1);
+    return setValue(id, today, tapValue(t.config, t.log[today]));
   }
+
+  /// Re-reads the database: the home-screen widgets write to it while the app
+  /// is away.
+  Future<void> reload() async => state = await _db.loadAll();
 
   void _validate(HabitConfig c) {
     if (c.name.trim().isEmpty) {
