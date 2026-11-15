@@ -8,6 +8,7 @@ const sage = Color(0xFF9DB58A);
 const sageDeep = Color(0xFF6F8F6A);
 const dustyPink = Color(0xFFE3B5B5);
 const honey = Color(0xFFE8C46A);
+const lavender = Color(0xFFB7A6D6);
 const inkBrown = Color(0xFF4E4036);
 
 const _serif = 'Newsreader';
