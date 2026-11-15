@@ -7,7 +7,6 @@ PlannedNotification _n(int day, int minutes) => PlannedNotification(
   habitId: 'h',
   dayIndex: day,
   minutes: minutes,
-  isWarning: false,
   isGrouped: false,
   title: 't',
   body: 'b',

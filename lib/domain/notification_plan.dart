@@ -1,6 +1,5 @@
 import 'day.dart';
-import 'habit.dart';
-import 'rules.dart';
+import 'habit_config.dart';
 import 'schedule.dart';
 
 class PlannedNotification {
@@ -9,7 +8,6 @@ class PlannedNotification {
     required this.habitId,
     required this.dayIndex,
     required this.minutes,
-    required this.isWarning,
     required this.isGrouped,
     required this.title,
     required this.body,
@@ -19,7 +17,6 @@ class PlannedNotification {
   final String? habitId;
   final int dayIndex;
   final int minutes;
-  final bool isWarning;
   final bool isGrouped;
   final String title;
   final String body;
@@ -31,22 +28,13 @@ class PlannedNotification {
       other.habitId == habitId &&
       other.dayIndex == dayIndex &&
       other.minutes == minutes &&
-      other.isWarning == isWarning &&
       other.isGrouped == isGrouped &&
       other.title == title &&
       other.body == body;
 
   @override
-  int get hashCode => Object.hash(
-    id,
-    habitId,
-    dayIndex,
-    minutes,
-    isWarning,
-    isGrouped,
-    title,
-    body,
-  );
+  int get hashCode =>
+      Object.hash(id, habitId, dayIndex, minutes, isGrouped, title, body);
 
   @override
   String toString() => 'Planned($id, $habitId, day $dayIndex, $minutes)';
@@ -79,30 +67,26 @@ bool _reminderDay(Schedule s, int d) {
   }
 }
 
-String _flower(Habit h) => h.flowerId.toLowerCase();
-
 List<PlannedNotification> planNotifications(
-  List<Habit> habits,
+  List<Tracked> habits,
   int today, {
   int horizonDays = 14,
   int nowMinutes = 0,
 }) {
   final out = <PlannedNotification>[];
-  final end = today + horizonDays;
-  // At most 3 - ignored reminders per habit, so an unopened app goes quiet
-  // after three; the next replan (on open or watering) restores the set.
-  final left = {for (final h in habits) h.id: 3 - h.ignoredReminders};
-
-  // Reminders, bucketed per day as (minutes, habit).
-  for (var d = today; d < end; d++) {
-    final due = <(int, Habit)>[];
-    for (final h in habits) {
-      if (h.lost || h.reminderMinutes < 0 || left[h.id]! <= 0) continue;
-      if (d < h.plantedDay || h.wateredDays.contains(d)) continue;
-      if (!_reminderDay(h.schedule, d)) continue;
-      final m = _quiet(h.reminderMinutes);
+  for (var d = today; d < today + horizonDays; d++) {
+    // Reminders for this day as (minutes, habit), earliest first.
+    final due = <(int, HabitConfig)>[];
+    for (final t in habits) {
+      final h = t.config;
+      final at = h.reminderMinutes;
+      if (at == null || d < h.createdDay || !_reminderDay(h.schedule, d)) {
+        continue;
+      }
+      final logged = t.log[d];
+      if (logged != null && h.goal.met(logged)) continue;
+      final m = _quiet(at);
       if (d == today && m <= nowMinutes) continue;
-      left[h.id] = left[h.id]! - 1;
       due.add((m, h));
     }
     due.sort((a, b) {
@@ -118,10 +102,9 @@ List<PlannedNotification> planNotifications(
             habitId: null,
             dayIndex: d,
             minutes: due[1].$1,
-            isWarning: false,
             isGrouped: true,
             title: 'Your garden',
-            body: 'A few flowers would love a drink.',
+            body: 'A few habits are waiting for you today.',
           ),
         );
         break;
@@ -132,45 +115,12 @@ List<PlannedNotification> planNotifications(
           habitId: h.id,
           dayIndex: d,
           minutes: m,
-          isWarning: false,
           isGrouped: false,
           title: 'Time for ${h.name}',
-          body: 'Your ${_flower(h)} would love a drink.',
+          body: 'Your ${h.flowerId.toLowerCase()} is waiting for you.',
         ),
       );
     }
   }
-
-  // Warnings: a safety net, independent of reminder pause, the daily limit
-  // and horizonDays, so all three are scheduled right after a watering.
-  final warnEnd = today + Rules.lostDays;
-  for (final h in habits) {
-    if (h.lost) continue;
-    final m = _quiet(h.reminderMinutes >= 0 ? h.reminderMinutes : 9 * 60);
-    for (final w in Rules.warnDays) {
-      final d = h.lastWaterDay + w;
-      if (d < today || d >= warnEnd) continue;
-      if (d == today && m <= nowMinutes) continue;
-      out.add(
-        PlannedNotification(
-          id: notificationId('w:${h.id}:$w:${h.lastWaterDay}'),
-          habitId: h.id,
-          dayIndex: d,
-          minutes: m,
-          isWarning: true,
-          isGrouped: false,
-          title: 'Your ${_flower(h)} is waiting',
-          body:
-              'A fresh start is here whenever you want it. Your history stays.',
-        ),
-      );
-    }
-  }
-
-  out.sort((a, b) {
-    var c = a.dayIndex.compareTo(b.dayIndex);
-    if (c == 0) c = a.minutes.compareTo(b.minutes);
-    return c != 0 ? c : a.id.compareTo(b.id);
-  });
   return out;
 }

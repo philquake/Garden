@@ -2,58 +2,39 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:garden/data/habit_store.dart';
-import 'package:garden/domain/habit.dart';
+import 'package:garden/domain/habit_config.dart';
 import 'package:garden/domain/notification_plan.dart';
-import 'package:garden/domain/schedule.dart';
 import 'package:garden/notify/notification_sync.dart';
 import 'package:garden/state/garden_controller.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../support.dart';
 import 'fake_scheduler.dart';
 
-const _today = 20000;
+const _today = testToday;
 final _now = DateTime(2024, 10, 4, 6, 0); // day 20000 at 06:00
 
-PlannedNotification _n(int id, int day, int minutes, {bool warning = false}) =>
-    PlannedNotification(
-      id: id,
-      habitId: 'h',
-      dayIndex: day,
-      minutes: minutes,
-      isWarning: warning,
-      isGrouped: false,
-      title: 't',
-      body: 'b',
-    );
-
-Habit _habit(String id) => Habit.newSeed(
+PlannedNotification _n(int id, int day, int minutes) => PlannedNotification(
   id: id,
-  name: 'Read',
-  flowerId: 'lily',
-  schedule: const Schedule.daily(),
-  today: _today,
-  reminderMinutes: 540,
+  habitId: 'h',
+  dayIndex: day,
+  minutes: minutes,
+  isGrouped: false,
+  title: 't',
+  body: 'b',
 );
 
-Future<ProviderContainer> _container(
+HabitConfig _habit(String id) => habit(id, name: 'Read');
+
+ProviderContainer _container(
   FakeScheduler fake, {
-  List<Habit> habits = const [],
-}) async {
-  SharedPreferences.setMockInitialValues({});
-  final store = HabitStore(await SharedPreferences.getInstance());
-  await store.save(habits);
-  final c = ProviderContainer(
-    overrides: [
-      habitStoreProvider.overrideWithValue(store),
-      todayProvider.overrideWithValue(() => _today),
-      nowProvider.overrideWithValue(() => _now),
-      notificationSchedulerProvider.overrideWithValue(fake),
-    ],
-  );
-  addTearDown(c.dispose);
-  return c;
-}
+  List<HabitConfig> habits = const [],
+}) => makeContainer(
+  habits: [for (final h in habits) tracked(h)],
+  overrides: [
+    nowProvider.overrideWithValue(() => _now),
+    notificationSchedulerProvider.overrideWithValue(fake),
+  ],
+);
 
 void main() {
   group('selectItems', () {
@@ -66,29 +47,28 @@ void main() {
       expect(items.map((i) => i.n.id), [2]);
     });
 
-    test('caps at 60 and keeps every warning first', () {
+    test('caps at 60, soonest first', () {
       final planned = [
         for (var i = 0; i < 80; i++) _n(100 + i, _today + 1 + i % 10, 540),
-        for (var i = 0; i < 5; i++) _n(i, _today + 9, 900, warning: true),
       ];
       final items = selectItems(planned, _now);
       expect(items.length, 60);
-      expect(items.take(5).every((i) => i.n.isWarning), isTrue);
-      expect(items.where((i) => i.n.isWarning).length, 5);
-      expect(items.skip(5).first.when.isBefore(items.last.when), isTrue);
+      for (var i = 1; i < items.length; i++) {
+        expect(items[i - 1].when.isAfter(items[i].when), isFalse);
+      }
     });
   });
 
   test('plans on start and again after a garden change', () async {
     final fake = FakeScheduler();
-    final c = await _container(fake, habits: [_habit('a')]);
+    final c = _container(fake, habits: [_habit('a')]);
     c.read(notificationSyncProvider);
     await Future<void>.delayed(Duration.zero);
     expect(fake.calls, ['schedule', 'cancel']);
     // Everything just scheduled is kept; only older ids can be cancelled.
     expect(fake.kept.single, {for (final i in fake.scheduled.single) i.n.id});
     final expected = selectItems(
-      planNotifications([_habit('a')], _today, nowMinutes: 360),
+      planNotifications([tracked(_habit('a'))], _today, nowMinutes: 360),
       _now,
     );
     expect(
@@ -106,23 +86,20 @@ void main() {
     );
   });
 
-  test('watering then replanning schedules all three loss warnings', () async {
+  test('logging today replans without the reminder for today', () async {
     final fake = FakeScheduler();
-    final c = await _container(fake, habits: [_habit('a')]);
+    final c = _container(fake, habits: [_habit('a')]);
     c.read(notificationSyncProvider);
-    await c.read(gardenProvider.notifier).water('a');
     await Future<void>.delayed(Duration.zero);
-    final warnings = fake.scheduled.last.where((i) => i.n.isWarning);
-    expect(warnings.map((i) => i.n.dayIndex), [
-      _today + 14,
-      _today + 21,
-      _today + 27,
-    ]);
+    expect(fake.scheduled.last.first.n.dayIndex, _today);
+    await c.read(gardenProvider.notifier).setValue('a', _today, 1);
+    await Future<void>.delayed(Duration.zero);
+    expect(fake.scheduled.last.first.n.dayIndex, _today + 1);
   });
 
   test('removing a habit replans without it', () async {
     final fake = FakeScheduler();
-    final c = await _container(fake, habits: [_habit('a'), _habit('b')]);
+    final c = _container(fake, habits: [_habit('a'), _habit('b')]);
     c.read(notificationSyncProvider);
     await Future<void>.delayed(Duration.zero);
     expect(fake.scheduled.last.any((i) => i.n.habitId == 'a'), isTrue);
@@ -135,7 +112,7 @@ void main() {
 
   test('overlapping replans never run concurrently', () async {
     final fake = FakeScheduler()..hold = Completer<void>();
-    final c = await _container(fake, habits: [_habit('a')]);
+    final c = _container(fake, habits: [_habit('a')]);
     final hold = fake.hold!;
     c.read(notificationSyncProvider);
     await Future<void>.delayed(Duration.zero);
@@ -150,7 +127,7 @@ void main() {
     expect(fake.calls, ['schedule', 'cancel', 'schedule', 'cancel']);
     final all = selectItems(
       planNotifications(
-        [_habit('a'), _habit('b'), _habit('c')],
+        [tracked(_habit('a')), tracked(_habit('b')), tracked(_habit('c'))],
         _today,
         nowMinutes: 360,
       ),
@@ -163,7 +140,7 @@ void main() {
     'a throwing scheduler is swallowed and the garden is unaffected',
     () async {
       final fake = FakeScheduler()..throwing = true;
-      final c = await _container(fake, habits: [_habit('a')]);
+      final c = _container(fake, habits: [_habit('a')]);
       c.read(notificationSyncProvider);
       await c.read(gardenProvider.notifier).add(_habit('b'));
       await Future<void>.delayed(Duration.zero);

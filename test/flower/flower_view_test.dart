@@ -4,12 +4,7 @@ import 'package:garden/flower/flower_view.dart';
 import 'package:garden/flower/look.dart';
 
 const _grin = FlowerLook(kind: 'daisy', stage: 4, face: Face.grin);
-const _lostSeed = FlowerLook(
-  kind: 'daisy',
-  stage: 0,
-  face: Face.asleep,
-  faded: true,
-);
+const _seed = FlowerLook(kind: 'daisy', stage: 0, face: Face.sleepy);
 
 Widget _host(
   FlowerLook look, {
@@ -50,10 +45,10 @@ void main() {
     });
   }
 
-  testWidgets('a faded flower paints, moving and still', (tester) async {
-    await tester.pumpWidget(_host(_lostSeed));
+  testWidgets('a seed paints, moving and still', (tester) async {
+    await tester.pumpWidget(_host(_seed));
     await tester.pump(const Duration(seconds: 1));
-    await tester.pumpWidget(_host(_lostSeed, still: true));
+    await tester.pumpWidget(_host(_seed, still: true));
     await tester.pump();
     expect(tester.takeException(), isNull);
   });
@@ -88,7 +83,7 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     await tester.pumpWidget(_host(_grin));
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.pumpWidget(_host(_lostSeed));
+    await tester.pumpWidget(_host(_seed));
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(seconds: 2));
     expect(tester.takeException(), isNull);

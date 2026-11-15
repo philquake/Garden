@@ -107,7 +107,7 @@ class _FlowerViewState extends State<FlowerView>
       _bendFrom = _bend(now, old.look);
       _bendAt = now;
     }
-    if (widget.delightTrigger != old.delightTrigger && !widget.look.faded) {
+    if (widget.delightTrigger != old.delightTrigger) {
       _delightAt = now;
     }
   }

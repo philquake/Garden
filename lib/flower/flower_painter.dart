@@ -101,12 +101,6 @@ class FlowerPainter extends CustomPainter {
     if (u <= 0 || !u.isFinite) return;
     final fine = size.shortestSide >= 80;
     canvas.save();
-    if (look.faded) {
-      canvas.saveLayer(
-        Offset.zero & size,
-        Paint()..color = Colors.white.withValues(alpha: 0.45),
-      );
-    }
     canvas.scale(u);
 
     final inkW = max(2.0, 1.3 / u);
@@ -235,7 +229,6 @@ class FlowerPainter extends CustomPainter {
 
     if (look.bubble) _bubble(canvas, head, r * (1 + p.petal * 0.7), ink);
 
-    if (look.faded) canvas.restore();
     canvas.restore();
   }
 

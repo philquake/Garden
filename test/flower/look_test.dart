@@ -1,149 +1,71 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:garden/domain/habit.dart';
 import 'package:garden/domain/schedule.dart';
+import 'package:garden/domain/stats.dart';
 import 'package:garden/flower/look.dart';
 
-const _today = 102; // a Monday
+/// A daily habit created on day 4 with [days] logged, seen on [today].
+Stats stats(Iterable<int> days, int today) => computeStats(
+  schedule: const Schedule.daily(),
+  createdDay: 4,
+  log: {for (final d in days) d: 1},
+  today: today,
+);
 
-/// A daily habit at [stage], watered today unless [dry].
-Habit _h({
-  int stage = 4,
-  bool dry = false,
-  int step = 0,
-  bool lost = false,
-  int fresh = -1,
-  String flower = 'tulip',
-  Schedule schedule = const Schedule.daily(),
-}) =>
-    Habit.newSeed(
-      id: 'a',
-      name: 'Read',
-      flowerId: flower,
-      schedule: schedule,
-      today: 50,
-    ).copyWith(
-      plantingWaterings: stage * schedule.perWeek,
-      wateredDays: dry ? const {} : const {_today},
-      declineStep: step,
-      lost: lost,
-      freshStartDay: fresh,
-      evaluatedDay: _today,
-    );
+List<int> run(int from, int to) => [for (var d = from; d <= to; d++) d];
+
+FlowerLook look(Stats s, {bool done = false, String flower = 'tulip'}) =>
+    lookOf(flower, s, doneToday: done);
 
 void main() {
-  test('lost: a faded sleeping seed, whatever it had grown to', () {
-    final l = lookOf(_h(lost: true, step: 3, dry: true), _today);
+  test('a new habit is a seed that waits expectantly for its first day', () {
+    final l = look(stats([], 4));
     expect(l.stage, 0);
-    expect(l.face, Face.asleep);
+    expect(l.face, Face.expectant);
+    expect(l.bubble, isTrue);
     expect(l.pose, Pose.upright);
-    expect(l.faded, true);
-    expect(l.bubble, false);
   });
 
-  test('petal loss: sad and slumped, with the bubble', () {
-    final l = lookOf(_h(step: 3, dry: true), _today);
-    expect((l.face, l.pose, l.bubble), (Face.sad, Pose.slump, true));
-    expect(l.faded, false);
+  test('done today: no bubble, the stage face', () {
+    final l = look(stats([4, 5, 6], 6), done: true);
+    expect(l.bubble, isFalse);
+    expect(l.face, Face.sleepy); // stage 0
   });
 
-  test('wilting: worried and drooping, with the bubble', () {
-    final l = lookOf(_h(step: 2, dry: true), _today);
-    expect((l.face, l.pose, l.bubble), (Face.worried, Pose.droop, true));
+  test('growth follows qualifying days, full bloom only when formed', () {
+    expect(look(stats(run(4, 36), 36), done: true).stage, 2); // 33 days
+    final formed = look(stats(run(4, 69), 69), done: true);
+    expect(formed.stage, 4);
+    expect(formed.face, Face.grin);
   });
 
-  test('decline beats a fresh start', () {
-    expect(
-      lookOf(_h(step: 3, fresh: _today, dry: true), _today).face,
-      Face.sad,
-    );
-    expect(
-      lookOf(_h(step: 2, fresh: _today, dry: true), _today).face,
-      Face.worried,
-    );
+  test('one missed day after a good run does not droop the flower', () {
+    final l = look(stats(run(4, 23), 25)); // day 24 forgiven, today open
+    expect(l.pose, Pose.upright);
+    expect(l.face, Face.expectant);
   });
 
-  test('fresh start: hopeful, and still shows it is due', () {
-    final l = lookOf(_h(fresh: _today, dry: true), _today);
-    expect((l.face, l.pose, l.bubble), (Face.hopeful, Pose.upright, true));
+  test('a long gap droops and then slumps it, but it never dies', () {
+    final droop = look(stats(run(4, 13), 33));
+    expect(droop.pose, Pose.droop);
+    expect(droop.face, Face.worried);
+    final slump = look(stats(run(4, 13), 60));
+    expect(slump.pose, Pose.slump);
+    expect(slump.face, Face.sad);
+    expect(slump.stage, greaterThanOrEqualTo(0));
   });
 
-  test('hopeful ends once the flower is thirsty again', () {
-    expect(
-      lookOf(_h(fresh: 99, step: 1, dry: true), _today).face,
-      Face.expectant,
-    );
+  test('doing it today after a long gap makes it hopeful', () {
+    final l = look(stats([...run(4, 13), 40], 40), done: true);
+    expect(l.face, Face.hopeful);
+    expect(l.bubble, isFalse);
   });
 
-  test('a fresh-start day in the future (clock moved back) still works', () {
-    expect(lookOf(_h(fresh: _today + 5), _today).face, Face.hopeful);
+  test('an unknown flower id falls back to the daisy', () {
+    expect(look(stats([], 4), flower: 'rose').kind, 'daisy');
   });
 
-  test('thirsty and not yet watered today: expectant with the bubble', () {
-    final l = lookOf(
-      _h(step: 1, dry: true, schedule: Schedule.weekday(3)),
-      _today,
-    );
-    expect((l.face, l.bubble), (Face.expectant, true));
-  });
-
-  test('watered today: a declining flower looks hopeful, with no bubble', () {
-    for (final (step, pose) in [
-      (1, Pose.upright),
-      (2, Pose.droop),
-      (3, Pose.slump),
-    ]) {
-      final l = lookOf(_h(step: step), _today);
-      expect((l.face, l.pose, l.bubble), (Face.hopeful, pose, false));
-    }
-  });
-
-  test('due today: expectant with the bubble', () {
-    final l = lookOf(_h(dry: true), _today);
-    expect((l.face, l.pose, l.bubble), (Face.expectant, Pose.upright, true));
-  });
-
-  test('watered and healthy: the face follows the growth stage', () {
-    const faces = [
-      Face.sleepy,
-      Face.curious,
-      Face.curious,
-      Face.content,
-      Face.grin,
-    ];
-    for (var s = 0; s < 5; s++) {
-      final l = lookOf(_h(stage: s), _today);
-      expect(l.stage, s);
-      expect(l.face, faces[s], reason: 'stage $s');
-      expect(l.bubble, false);
-      expect(l.pose, Pose.upright);
-    }
-  });
-
-  test('a weekday habit on another day is not due', () {
-    final l = lookOf(_h(schedule: Schedule.weekday(3), dry: true), _today);
-    expect((l.face, l.bubble), (Face.grin, false));
-  });
-
-  test('a times-a-week habit that met its target is not due', () {
-    final h = _h(schedule: Schedule.timesPerWeek(2))
-        .copyWith(wateredDays: {_today, _today + 1});
-    expect(lookOf(h, _today + 2).bubble, false);
-  });
-
-  test('an unknown flower kind is drawn as a daisy', () {
-    expect(lookOf(_h(flower: 'orchid'), _today).kind, 'daisy');
-    expect(lookOf(_h(flower: 'lavender'), _today).kind, 'lavender');
-    expect(pickerLook('orchid').kind, 'daisy');
-  });
-
-  test('picker look: a happy full bloom', () {
-    expect(
-      pickerLook('tulip'),
-      const FlowerLook(kind: 'tulip', stage: 4, face: Face.grin),
-    );
-  });
-
-  test('kinds keep their order', () {
-    expect(flowerKinds, ['tulip', 'sunflower', 'lavender', 'daisy']);
+  test('the picker shows a happy full bloom', () {
+    final l = pickerLook('sunflower');
+    expect((l.kind, l.stage, l.face), ('sunflower', 4, Face.grin));
   });
 }

@@ -15,7 +15,7 @@ final notificationSchedulerProvider = Provider<NotificationScheduler>(
 
 final nowProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 
-/// Future items only, deduped by id, warnings first, capped at [maxScheduled].
+/// Future items only, deduped by id, soonest first, capped at [maxScheduled].
 List<ScheduledItem> selectItems(
   List<PlannedNotification> planned,
   DateTime now,
@@ -27,7 +27,6 @@ List<ScheduledItem> selectItems(
           if (localWhen(n).isAfter(now) && seen.add(n.id))
             ScheduledItem(n, localWhen(n)),
       ]..sort((a, b) {
-        if (a.n.isWarning != b.n.isWarning) return a.n.isWarning ? -1 : 1;
         return a.when.compareTo(b.when);
       });
   return items.take(maxScheduled).toList();
@@ -64,13 +63,13 @@ class NotificationSync {
       // filter drops anything already past, so the combination is correct.
       final planned = planNotifications(
         _ref.read(gardenProvider),
-        _ref.read(todayProvider)(),
+        _ref.read(todayProvider),
         nowMinutes: now.hour * 60 + now.minute,
       );
       final scheduler = _ref.read(notificationSchedulerProvider);
       final items = selectItems(planned, now);
       // Schedule first, then drop what is no longer planned: a crash between
-      // the two never leaves the garden without its loss warnings.
+      // the two never leaves the garden without reminders.
       await scheduler.scheduleAll(items);
       await scheduler.cancelExcept({for (final i in items) i.n.id});
     } catch (e) {

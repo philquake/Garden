@@ -1,6 +1,6 @@
-import '../domain/due.dart';
-import '../domain/growth.dart';
-import '../domain/habit.dart';
+import 'dart:math';
+
+import '../domain/stats.dart';
 
 /// Flower kinds, in picker order.
 const flowerKinds = ['tulip', 'sunflower', 'lavender', 'daisy'];
@@ -27,7 +27,6 @@ class FlowerLook {
     required this.face,
     this.pose = Pose.upright,
     this.bubble = false,
-    this.faded = false,
   });
 
   /// Always one of [flowerKinds].
@@ -41,9 +40,6 @@ class FlowerLook {
   /// Water-drop thought bubble: the flower wants water.
   final bool bubble;
 
-  /// A lost flower, drawn faint.
-  final bool faded;
-
   @override
   bool operator ==(Object other) =>
       other is FlowerLook &&
@@ -51,15 +47,13 @@ class FlowerLook {
       other.stage == stage &&
       other.face == face &&
       other.pose == pose &&
-      other.bubble == bubble &&
-      other.faded == faded;
+      other.bubble == bubble;
 
   @override
-  int get hashCode => Object.hash(kind, stage, face, pose, bubble, faded);
+  int get hashCode => Object.hash(kind, stage, face, pose, bubble);
 
   @override
-  String toString() =>
-      'FlowerLook($kind, $stage, $face, $pose, $bubble, $faded)';
+  String toString() => 'FlowerLook($kind, $stage, $face, $pose, $bubble)';
 }
 
 String _kind(String flowerId) =>
@@ -73,45 +67,33 @@ const _stageFaces = [
   Face.grin,
 ];
 
-/// The look for [h] on [today]. First match wins: lost, watered today while
-/// recovering, petal loss, wilting, fresh start, wants water, then the growth
-/// stage's own face.
-FlowerLook lookOf(Habit h, int today) {
-  final kind = _kind(h.flowerId);
-  if (h.lost) {
-    return FlowerLook(kind: kind, stage: 0, face: Face.asleep, faded: true);
-  }
-  final stage = displayStage(h);
-  final step = h.declineStep;
-  // Nothing more can be done today once it is watered, so the pang ends: the
-  // body still shows the decline, the face looks up, and the bubble goes.
-  final watered = h.wateredDays.contains(today);
-  final wantsWater = !watered && (needsWaterToday(h, today) || step >= 1);
-  final pose = step >= 3
-      ? Pose.slump
-      : step == 2
-      ? Pose.droop
-      : Pose.upright;
+/// The look for a habit. Flowers never die: growth follows qualifying days
+/// towards "habit formed", and mood follows the recent score, so one missed
+/// day does not wilt it.
+FlowerLook lookOf(String flowerId, Stats s, {required bool doneToday}) {
+  final kind = _kind(flowerId);
+  final stage = min((s.growth * 4).floor(), 4);
+  // A young habit's score is still climbing from zero, so it is not a mood.
+  final established = s.totalCompletions >= 5;
   final Face face;
-  if (watered && step >= 1) {
-    face = Face.hopeful;
-  } else if (step >= 3) {
-    face = Face.sad;
-  } else if (step == 2) {
-    face = Face.worried;
-  } else if (step <= 0 && h.freshStartDay >= 0) {
-    face = Face.hopeful;
-  } else if (wantsWater) {
+  var pose = Pose.upright;
+  if (established && s.score < 0.15) {
+    pose = Pose.slump;
+    face = doneToday ? Face.hopeful : Face.sad;
+  } else if (established && s.score < 0.35) {
+    pose = Pose.droop;
+    face = doneToday ? Face.hopeful : Face.worried;
+  } else if (s.due) {
     face = Face.expectant;
   } else {
-    face = _stageFaces[stage];
+    face = s.formed ? Face.grin : _stageFaces[stage];
   }
   return FlowerLook(
     kind: kind,
     stage: stage,
     face: face,
     pose: pose,
-    bubble: wantsWater,
+    bubble: s.due && !doneToday,
   );
 }
 

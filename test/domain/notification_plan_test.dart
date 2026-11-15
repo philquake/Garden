@@ -1,274 +1,115 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garden/domain/day.dart';
-import 'package:garden/domain/habit.dart';
+import 'package:garden/domain/habit_config.dart';
 import 'package:garden/domain/notification_plan.dart';
 import 'package:garden/domain/schedule.dart';
+import 'package:garden/domain/stats.dart';
 
-const today = 20000;
+import '../support.dart';
 
-Habit h(
-  String id, {
-  Schedule schedule = const Schedule.daily(),
-  int reminder = 540,
-  int ignored = 0,
-  bool lost = false,
-  int? planted,
-  int? lastWater,
-  Set<int> watered = const {},
-  String flower = 'Tulip',
-}) =>
-    Habit.newSeed(
-      id: id,
-      name: id,
-      flowerId: flower,
-      schedule: schedule,
-      today: planted ?? today - 30,
-      reminderMinutes: reminder,
-    ).copyWith(
-      missedSinceWater: ignored,
-      lost: lost,
-      lastWaterDay: lastWater ?? today,
-      wateredDays: watered,
-    );
+const today = testToday; // a Friday
 
-List<PlannedNotification> reminders(List<PlannedNotification> l) =>
-    l.where((n) => !n.isWarning).toList();
+List<PlannedNotification> plan(List<Tracked> l, {int now = 0}) =>
+    planNotifications(l, today, nowMinutes: now);
 
 void main() {
-  test('empty list gives empty plan', () {
-    expect(planNotifications([], today), isEmpty);
+  test('no habits, no plan', () {
+    expect(plan([]), isEmpty);
   });
 
-  test('daily: one reminder a day at its time, three at most', () {
-    final p = reminders(planNotifications([h('a', reminder: 600)], today));
-    expect(p.length, 3);
-    expect(p.map((n) => n.dayIndex), [today, today + 1, today + 2]);
-    expect(p.every((n) => n.minutes == 600 && !n.isWarning), isTrue);
-    expect(p.first.title, 'Time for a');
-    expect(p.first.body, 'Your tulip would love a drink.');
-    expect(p.first.habitId, 'a');
+  test('a daily habit gets one reminder a day at its time for two weeks', () {
+    final p = plan([tracked(habit('a'))]);
+    expect(p.length, 14);
+    expect(p.map((n) => n.dayIndex), [for (var i = 0; i < 14; i++) today + i]);
+    expect(p.every((n) => n.minutes == 540 && n.habitId == 'a'), isTrue);
   });
 
-  test('weekday only on its weekday', () {
-    final p = reminders(
-      planNotifications([h('a', schedule: Schedule.weekday(3))], today),
-    );
+  test('a weekday habit reminds only on its weekday', () {
+    final p = plan([tracked(habit('a', schedule: Schedule.weekday(1)))]);
     expect(p.length, 2);
-    expect(p.every((n) => weekdayOf(n.dayIndex) == 3), isTrue);
+    expect(p.every((n) => weekdayOf(n.dayIndex) == 1), isTrue);
   });
 
-  test('timesPerWeek lands on expected weekdays', () {
-    // One day at a time, so the three-reminder limit never cuts the week.
-    Set<int> days(int n) => {
-      for (var d = today; d < today + 7; d++)
-        for (final x in reminders(
-          planNotifications(
-            [h('a', schedule: Schedule.timesPerWeek(n))],
-            d,
-            horizonDays: 1,
-          ),
-        ))
-          weekdayOf(x.dayIndex),
-    };
-    expect(days(3), {1, 3, 5});
-    expect(days(1), {1});
-    expect(days(7), {1, 2, 3, 4, 5, 6, 7});
+  test('a 3-a-week habit lands on Monday, Wednesday and Friday', () {
+    final p = plan([tracked(habit('a', schedule: Schedule.timesPerWeek(3)))]);
+    expect({for (final n in p) weekdayOf(n.dayIndex)}, {1, 3, 5});
   });
 
-  test('watered today: none today, still tomorrow', () {
-    final p = reminders(
-      planNotifications([
-        h('a', watered: {today}),
-      ], today),
-    );
+  test('a habit with no reminder time plans nothing', () {
+    expect(plan([tracked(habit('a', reminder: null))]), isEmpty);
+  });
+
+  test('met today: none today, still tomorrow', () {
+    final p = plan([
+      tracked(habit('a'), [today]),
+    ]);
     expect(p.first.dayIndex, today + 1);
-    expect(p.length, 3);
   });
 
-  test('days before plantedDay skipped', () {
-    final p = reminders(planNotifications([h('a', planted: today + 5)], today));
-    expect(p.first.dayIndex, today + 5);
-    expect(p.length, 3);
+  test('a numeric habit short of its target is still reminded today', () {
+    final h = habit('a', goal: const Goal(target: 8));
+    final p = plan([
+      Tracked(h, {today: 3}),
+    ]);
+    expect(p.first.dayIndex, today);
   });
 
-  test('nowMinutes skips today earlier-or-equal reminder', () {
-    expect(
-      planNotifications([h('a')], today, nowMinutes: 540).first.dayIndex,
-      today + 1,
-    );
-    expect(
-      planNotifications([h('a')], today, nowMinutes: 539).first.dayIndex,
-      today,
-    );
+  test('days before the habit existed are skipped', () {
+    final p = plan([tracked(habit('a', createdDay: today + 3))]);
+    expect(p.first.dayIndex, today + 3);
   });
 
-  test('quiet hours move to 08:00 same day', () {
-    for (final m in [23 * 60, 3 * 60, 22 * 60, 0]) {
-      final p = planNotifications([h('a', reminder: m)], today);
-      expect(p.every((n) => n.minutes == 480), isTrue, reason: '$m');
-      expect(p.first.dayIndex, today);
-    }
-    expect(
-      planNotifications([h('a', reminder: 1319)], today).first.minutes,
-      1319,
-    );
+  test('a reminder time already past today moves to tomorrow', () {
+    final p = plan([tracked(habit('a', reminder: 540))], now: 540);
+    expect(p.first.dayIndex, today + 1);
   });
 
-  test('four due habits: 1 individual + 1 grouped', () {
-    final hs = [
-      for (final id in ['d', 'c', 'b', 'a']) h(id),
-    ];
-    final p = reminders(planNotifications(hs, today, horizonDays: 1));
+  test('quiet hours move a reminder to 08:00', () {
+    final late = plan([tracked(habit('a', reminder: 23 * 60))]);
+    final early = plan([tracked(habit('a', reminder: 5 * 60))]);
+    expect(late.first.minutes, 480);
+    expect(early.first.minutes, 480);
+  });
+
+  test('three or more due habits become one grouped reminder', () {
+    final p = plan([
+      tracked(habit('a', reminder: 540)),
+      tracked(habit('b', reminder: 600)),
+      tracked(habit('c', reminder: 660)),
+      tracked(habit('d', reminder: 720)),
+    ]).where((n) => n.dayIndex == today).toList();
     expect(p.length, 2);
-    final first = p.firstWhere((n) => !n.isGrouped);
-    expect(first.habitId, 'a');
-    final g = p.firstWhere((n) => n.isGrouped);
-    expect(g.habitId, isNull);
-    expect(g.title, 'Your garden');
-    expect(g.body, 'A few flowers would love a drink.');
-    expect(g.minutes, 540);
-    expect(g.isWarning, isFalse);
-  });
-
-  test('grouped sits at the second reminder time', () {
-    final p = reminders(
-      planNotifications(
-        [h('a', reminder: 500), h('b', reminder: 700), h('c', reminder: 900)],
-        today,
-        horizonDays: 1,
-      ),
-    );
-    expect(p.map((n) => n.minutes), [500, 700]);
-    expect(p[1].isGrouped, isTrue);
+    expect(p.where((n) => n.isGrouped).length, 1);
+    expect(p.firstWhere((n) => n.isGrouped).minutes, 600);
   });
 
   test('two habits give two individual reminders', () {
-    final p = reminders(
-      planNotifications([h('a'), h('b')], today, horizonDays: 1),
-    );
+    final p = plan([tracked(habit('a')), tracked(habit('b'))])
+        .where((n) => n.dayIndex == today);
     expect(p.length, 2);
     expect(p.any((n) => n.isGrouped), isFalse);
   });
 
-  test('paused, unset and lost reminders; warnings survive pause', () {
-    expect(reminders(planNotifications([h('a', ignored: 3)], today)), isEmpty);
-    expect(
-      reminders(planNotifications([h('a', reminder: -1)], today)),
-      isEmpty,
-    );
-    expect(
-      planNotifications([h('a', lost: true, lastWater: today - 5)], today),
-      isEmpty,
-    );
-    final p = planNotifications(
-      [h('a', ignored: 3, lastWater: today - 10)],
-      today,
-      horizonDays: 40,
-    );
-    expect(p.length, 3);
-    expect(p.every((n) => n.isWarning), isTrue);
-    expect(p.map((n) => n.dayIndex), [today + 4, today + 11, today + 17]);
-  });
-
-  test('warnings at 14/21/27 with default 540 time', () {
-    final p = planNotifications(
-      [h('a', reminder: -1, lastWater: today - 2)],
-      today,
-      horizonDays: 40,
-    );
-    expect(p.map((n) => n.dayIndex), [today + 12, today + 19, today + 25]);
-    expect(p.every((n) => n.minutes == 540), isTrue);
-    expect(p.first.title, 'Your tulip is waiting');
-    expect(
-      p.first.body,
-      'A fresh start is here whenever you want it. Your history stays.',
-    );
-    expect(
-      planNotifications(
-        [h('a', reminder: -1, lastWater: today - 14)],
-        today,
-        nowMinutes: 540,
-      ).where((n) => n.dayIndex == today),
-      isEmpty,
-    );
-  });
-
-  test('warning day keeps 2 reminders plus the warning', () {
-    final p = planNotifications(
-      [h('a', lastWater: today - 12), h('b')],
-      today,
-      horizonDays: 6,
-    );
-    final day = p.where((n) => n.dayIndex == today + 2).toList();
-    expect(day.length, 3);
-    expect(day.where((n) => n.isWarning).length, 1);
-  });
-
-  test('warnings use their own 30-day window, not horizonDays', () {
-    final p = planNotifications([h('a', reminder: -1)], today);
-    expect(p.map((n) => n.dayIndex), [today + 14, today + 21, today + 27]);
-    expect(p.every((n) => n.isWarning), isTrue);
-  });
-
-  test('ignored reminders shrink the remaining set; warnings unaffected', () {
-    final p = planNotifications([h('a', ignored: 2)], today);
-    expect(reminders(p).map((n) => n.dayIndex), [today]);
-    expect(p.where((n) => n.isWarning).length, 3);
-  });
-
-  test('limit holds per habit while grouping and 2-a-day still apply', () {
-    final hs = [
-      for (final id in ['a', 'b', 'c']) h(id),
-      h('d', ignored: 1),
-    ];
-    final p = reminders(planNotifications(hs, today));
-    for (var d = today; d < today + 14; d++) {
-      expect(p.where((n) => n.dayIndex == d).length, lessThanOrEqualTo(2));
+  test('ids are stable, distinct and the plan is sorted', () {
+    final habits = [tracked(habit('a')), tracked(habit('b', reminder: 600))];
+    final p = plan(habits);
+    expect(p.map((n) => n.id).toSet().length, p.length);
+    expect(plan(habits), p);
+    for (var i = 1; i < p.length; i++) {
+      final a = p[i - 1], b = p[i];
+      expect(
+        a.dayIndex < b.dayIndex ||
+            (a.dayIndex == b.dayIndex && a.minutes <= b.minutes),
+        isTrue,
+      );
     }
-    // d drops out after two days; a, b and c after three.
-    expect(p.map((n) => n.dayIndex).toSet(), {today, today + 1, today + 2});
-    expect(p.where((n) => n.isGrouped).length, 3);
   });
 
-  test('ids stable, distinct; sorted', () {
-    final hs = [
-      h('b', reminder: 700),
-      h('a', reminder: 500, lastWater: today - 10),
-    ];
-    final p1 = planNotifications(hs, today, horizonDays: 20);
-    expect(p1, planNotifications(hs, today, horizonDays: 20));
-    expect(p1.map((n) => n.id).toSet().length, p1.length);
-    for (var i = 1; i < p1.length; i++) {
-      final a = p1[i - 1], b = p1[i];
-      final ka = [a.dayIndex, a.minutes, a.id];
-      final kb = [b.dayIndex, b.minutes, b.id];
-      var c = 0;
-      for (var k = 0; k < 3 && c == 0; k++) {
-        c = ka[k].compareTo(kb[k]);
-      }
-      expect(c, lessThan(0));
-    }
-    expect(notificationId('r:a:1'), notificationId('r:a:1'));
-    expect(notificationId('x'), inInclusiveRange(1, 0x7FFFFFFF));
-  });
-
-  test('no guilt words in any copy', () {
-    final p = planNotifications(
-      [
-        for (final id in ['a', 'b', 'c', 'd']) h(id, lastWater: today - 10),
-      ],
-      today,
-      horizonDays: 40,
-    );
-    final banned = RegExp(
-      r'\b(fail|lazy|behind|missed|late|bad|should|guilt|streak|punish|lost|give up)',
-      caseSensitive: false,
-    );
-    expect(p.any((n) => n.isGrouped), isTrue);
-    expect(p.any((n) => n.isWarning), isTrue);
-    for (final n in p) {
-      expect(banned.hasMatch(n.title), isFalse, reason: n.title);
-      expect(banned.hasMatch(n.body), isFalse, reason: n.body);
+  test('the copy is gentle', () {
+    final p = plan([tracked(habit('Read'))]);
+    final text = '${p.first.title} ${p.first.body}'.toLowerCase();
+    for (final w in ['lost', 'dead', 'missed', 'failed', 'streak', 'hurry']) {
+      expect(text.contains(w), isFalse, reason: w);
     }
   });
 }
