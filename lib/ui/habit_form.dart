@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../art/art_pack.dart';
 import '../domain/day.dart';
 import '../domain/habit.dart';
 import '../domain/ids.dart';
 import '../domain/rules.dart';
 import '../domain/schedule.dart';
 import '../notify/notification_sync.dart';
-import '../state/art_provider.dart';
+import '../flower/flower_view.dart';
+import '../flower/look.dart';
 import '../state/garden_controller.dart';
 import 'theme.dart';
 import 'toast.dart';
@@ -39,7 +39,7 @@ class _HabitFormState extends ConsumerState<HabitForm> {
   void initState() {
     super.initState();
     final e = widget.existing;
-    _flowerId = e?.flowerId ?? ref.read(artPackProvider).flowerIds.first;
+    _flowerId = e?.flowerId ?? flowerKinds.first;
     _kind = e?.schedule.kind ?? ScheduleKind.daily;
     if (e != null) {
       if (_kind == ScheduleKind.timesPerWeek) _times = e.schedule.value;
@@ -187,7 +187,6 @@ class _HabitFormState extends ConsumerState<HabitForm> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final art = ref.watch(artPackProvider);
     final isNew = widget.existing == null;
     return Scaffold(
       appBar: AppBar(
@@ -218,9 +217,7 @@ class _HabitFormState extends ConsumerState<HabitForm> {
             height: 120,
             child: ListView(
               scrollDirection: Axis.horizontal,
-              children: [
-                for (final id in art.flowerIds) _flowerChoice(art, id),
-              ],
+              children: [for (final id in flowerKinds) _flowerChoice(id)],
             ),
           ),
           const SizedBox(height: 24),
@@ -289,9 +286,8 @@ class _HabitFormState extends ConsumerState<HabitForm> {
     );
   }
 
-  Widget _flowerChoice(ArtPack art, String id) {
+  Widget _flowerChoice(String id) {
     final selected = id == _flowerId;
-    final frames = art.framesFor(id, 2, FlowerHealth.healthy);
     final name = _capitalise(id);
     return Semantics(
       key: Key('flower-choice-$id'),
@@ -317,18 +313,7 @@ class _HabitFormState extends ConsumerState<HabitForm> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SizedBox(
-                width: 64,
-                height: 64,
-                child: frames.isEmpty
-                    ? const SizedBox.shrink()
-                    : Image.asset(
-                        frames.first,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, _, _) =>
-                            const Icon(Icons.local_florist, color: sageDeep),
-                      ),
-              ),
+              FlowerView(look: pickerLook(id), size: 64),
               const SizedBox(height: 4),
               Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
             ],

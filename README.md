@@ -14,7 +14,7 @@ and you can always start again with your history intact.
 - Fresh start (from petal loss, or 14 days without water) and replant (when lost), history always kept
 - Encouragement banner and optional local reminders, with warnings before a
   flower is lost
-- Swappable art packs (placeholder art ships today)
+- Cartoon flower characters, drawn and animated in code, whose faces show how each habit is doing
 
 ## Run, test, build
 
@@ -33,7 +33,7 @@ iOS builds need a Mac.
 - `lib/state` Riverpod providers and the garden controller
 - `lib/data` persistence (SharedPreferences habit store)
 - `lib/ui` meadow, habit screen, habit form, painters and effects
-- `lib/art` art pack loading and frame lookup
+- `lib/flower` the flower character: look, painter and animated view
 - `lib/notify` reminder scheduling
 - `test/` unit, widget and end-to-end flow tests (`test/flows`)
 
@@ -63,5 +63,4 @@ iOS builds need a Mac.
 
 ## More
 
-- Art handoff: [docs/art-pack.md](docs/art-pack.md)
 - Design spec: [docs/superpowers/specs/2026-11-07-watercolour-garden-habit-tracker-design.md](docs/superpowers/specs/2026-11-07-watercolour-garden-habit-tracker-design.md)

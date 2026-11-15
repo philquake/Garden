@@ -78,8 +78,9 @@ class Habit {
 
   /// Reminders ignored in a row: scheduled misses since the last watering or
   /// reminder change (0 when the habit has no reminder).
-  int get ignoredReminders =>
-      reminderMinutes < 0 ? 0 : max(0, missedSinceWater - reminderBaselineMissed);
+  int get ignoredReminders => reminderMinutes < 0
+      ? 0
+      : max(0, missedSinceWater - reminderBaselineMissed);
 
   Habit copyWith({
     String? id,

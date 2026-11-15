@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../art/art_pack.dart';
 import '../domain/day.dart';
-import '../domain/growth.dart';
 import '../domain/habit.dart';
 import '../domain/neglect.dart';
 import '../domain/rules.dart';
 import '../domain/schedule.dart';
 import '../domain/week_progress.dart';
-import '../state/art_provider.dart';
+import '../flower/flower_view.dart';
+import '../flower/look.dart';
 import '../state/garden_controller.dart';
 import '../state/water_random_provider.dart';
+import 'meadow_painter.dart';
 import 'theme.dart';
 import 'toast.dart';
 import 'water_effect.dart';
@@ -51,7 +52,9 @@ class _HabitScreenState extends ConsumerState<HabitScreen> {
     final ok = await _attempt(
       () => ref.read(gardenProvider.notifier).water(h.id),
     );
-    if (ok && mounted) setState(() => _waterTaps++);
+    if (!ok || !mounted) return;
+    HapticFeedback.lightImpact();
+    setState(() => _waterTaps++);
   }
 
   Future<void> _backfill(Habit h, int day) => _attempt(
@@ -64,7 +67,6 @@ class _HabitScreenState extends ConsumerState<HabitScreen> {
     final h = habits.where((e) => e.id == widget.habitId).firstOrNull;
     if (h == null) return _missing(context);
     final today = ref.read(todayProvider)();
-    final art = ref.watch(artPackProvider);
     final notifier = ref.read(gardenProvider.notifier);
     final theme = Theme.of(context);
     final progress = weekProgress(h, today);
@@ -117,7 +119,12 @@ class _HabitScreenState extends ConsumerState<HabitScreen> {
                             child: WaterEffect(
                               trigger: _waterTaps,
                               random: ref.read(waterRandomProvider),
-                              child: _flower(h, art),
+                              child: FlowerView(
+                                look: lookOf(h, today),
+                                size: 240,
+                                seed: stableHash(h.id),
+                                delightTrigger: _waterTaps,
+                              ),
                             ),
                           ),
                         ),
@@ -231,24 +238,6 @@ class _HabitScreenState extends ConsumerState<HabitScreen> {
       ),
     ),
   );
-
-  Widget _flower(Habit h, ArtPack art) {
-    final stage = displayStage(h);
-    final frames = art.framesFor(h.flowerId, stage, healthOf(h));
-    const size = 240.0;
-    Widget image = frames.isEmpty
-        ? const SizedBox(width: size, height: size)
-        : Image.asset(
-            frames.first,
-            width: size,
-            height: size,
-            fit: BoxFit.contain,
-            errorBuilder: (_, _, _) =>
-                const SizedBox(width: size, height: size),
-          );
-    if (h.lost) image = Opacity(opacity: 0.45, child: image);
-    return image;
-  }
 }
 
 class _PausedCard extends StatelessWidget {

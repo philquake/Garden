@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:garden/art/art_pack.dart';
 import 'package:garden/data/habit_store.dart';
 import 'package:garden/domain/growth.dart';
 import 'package:garden/domain/habit.dart';
 import 'package:garden/domain/schedule.dart';
+import 'package:garden/flower/look.dart';
 import 'package:garden/notify/notification_sync.dart';
-import 'package:garden/state/art_provider.dart';
 import 'package:garden/state/garden_controller.dart';
 import 'package:garden/ui/habit_form.dart';
 import 'package:garden/ui/theme.dart';
@@ -16,16 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../notify/fake_scheduler.dart';
 
 const _today = 20000;
-const _ids = ['rose', 'lily', 'iris', 'poppy', 'aster'];
-
-final _pack = ArtPack.fromManifest({
-  for (final id in _ids)
-    id: {
-      '2': {
-        'healthy': ['missing/$id.png'],
-      },
-    },
-});
+const _ids = flowerKinds;
 
 late ProviderContainer _c;
 
@@ -33,7 +23,7 @@ Habit _habit(String id, {Schedule s = const Schedule.daily(), int ago = 0}) =>
     Habit.newSeed(
       id: id,
       name: 'Read',
-      flowerId: 'lily',
+      flowerId: 'sunflower',
       schedule: s,
       today: _today - ago,
     );
@@ -56,7 +46,6 @@ Future<void> _pump(
     overrides: [
       habitStoreProvider.overrideWithValue(store),
       todayProvider.overrideWithValue(() => today),
-      artPackProvider.overrideWithValue(_pack),
       if (scheduler != null)
         notificationSchedulerProvider.overrideWithValue(scheduler),
     ],
@@ -144,13 +133,13 @@ void main() {
   ) async {
     await _pump(tester);
     await tester.enterText(find.byKey(const Key('name-field')), '  Walk ');
-    await _tap(tester, 'flower-choice-iris');
+    await _tap(tester, 'flower-choice-lavender');
     await _tap(tester, 'schedule-times');
     await _tap(tester, 'times-plus');
     await _save(tester);
     final h = _habits.single;
     expect(h.name, 'Walk');
-    expect(h.flowerId, 'iris');
+    expect(h.flowerId, 'lavender');
     expect(h.schedule, Schedule.timesPerWeek(4));
     expect(growthStage(h), 0);
     expect(h.wateredDays, isEmpty);
@@ -168,7 +157,7 @@ void main() {
     }
     await tester.enterText(find.byKey(const Key('name-field')), 'A');
     await _save(tester);
-    expect(_habits.single.flowerId, 'rose');
+    expect(_habits.single.flowerId, 'tulip');
   });
 
   testWidgets('daily and weekday schedules', (tester) async {
@@ -236,7 +225,7 @@ void main() {
       isTrue,
     );
     expect(find.byKey(const Key('reminder-time')), findsOneWidget);
-    expect(find.bySemanticsLabel('Choose Lily'), findsOneWidget);
+    expect(find.bySemanticsLabel('Choose Sunflower'), findsOneWidget);
   });
 
   testWidgets('editing schedule creates no misses; details persist', (
@@ -247,7 +236,7 @@ void main() {
     await _pump(tester, habits: [h], existing: h);
     final before = _habits.single;
     await tester.enterText(find.byKey(const Key('name-field')), 'Stretch');
-    await _tap(tester, 'flower-choice-poppy');
+    await _tap(tester, 'flower-choice-daisy');
     await _tap(tester, 'schedule-weekday');
     await _tap(tester, 'weekday-2');
     await _tap(tester, 'reminder-switch');
@@ -255,7 +244,7 @@ void main() {
     final after = _habits.single;
     expect(after.schedule, Schedule.weekday(2));
     expect(after.name, 'Stretch');
-    expect(after.flowerId, 'poppy');
+    expect(after.flowerId, 'daisy');
     expect(after.reminderMinutes, 540);
     expect(after.missedSinceWater, before.missedSinceWater);
     expect(after.declineStep, before.declineStep);
@@ -294,14 +283,14 @@ void main() {
     final handle = tester.ensureSemantics();
     await _pump(tester);
     await tester.enterText(find.byKey(const Key('name-field')), 'A');
-    tester.semantics.tap(find.semantics.byLabel('Choose Iris'));
+    tester.semantics.tap(find.semantics.byLabel('Choose Lavender'));
     await tester.pump();
     tester.semantics.tap(find.semantics.byLabel('Times a week'));
     await tester.pump();
     tester.semantics.tap(find.semantics.byLabel('More times a week'));
     await tester.pump();
     await _save(tester);
-    expect(_habits.single.flowerId, 'iris');
+    expect(_habits.single.flowerId, 'lavender');
     expect(_habits.single.schedule, Schedule.timesPerWeek(4));
 
     await _pump(tester);

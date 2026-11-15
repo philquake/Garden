@@ -139,7 +139,7 @@ void main() {
     final handle = tester.ensureSemantics();
     String? opened;
     await _pump(tester, 2, onOpen: (id) => opened = id);
-    tester.semantics.tap(find.semantics.byLabel('Habit h1, seed, healthy'));
+    tester.semantics.tap(find.semantics.byLabel('Habit h1, seed, healthy, needs water today'));
     expect(opened, 'h1');
     handle.dispose();
   });

@@ -4,12 +4,13 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../art/art_pack.dart';
+import '../domain/due.dart';
 import '../domain/growth.dart';
 import '../domain/habit.dart';
 import '../domain/messages.dart';
 import '../domain/rules.dart';
-import '../state/art_provider.dart';
+import '../flower/flower_view.dart';
+import '../flower/look.dart';
 import '../state/banner_provider.dart';
 import '../state/garden_controller.dart';
 import 'meadow_painter.dart';
@@ -32,7 +33,7 @@ class MeadowScreen extends ConsumerStatefulWidget {
 
 class _MeadowScreenState extends ConsumerState<MeadowScreen>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
-  // One 24s loop; sway uses 4 cycles of it, insects 1 or 2, so all loop smoothly.
+  // One 24s loop; insects use 1 or 2 cycles of it, so they loop smoothly.
   late final _t = AnimationController(
     vsync: this,
     duration: const Duration(seconds: 24),
@@ -98,7 +99,6 @@ class _MeadowScreenState extends ConsumerState<MeadowScreen>
   @override
   Widget build(BuildContext context) {
     final habits = ref.watch(gardenProvider);
-    final art = ref.watch(artPackProvider);
     final dismissed = ref.watch(bannerDismissedProvider);
     final today = ref.read(todayProvider)();
     // freshStart is the only tone that names a habit.
@@ -129,7 +129,7 @@ class _MeadowScreenState extends ConsumerState<MeadowScreen>
                         ),
                         if (!_still) ..._insects(width, height),
                         for (var i = 0; i < habits.length; i++)
-                          _flower(habits[i], i, art, width, height),
+                          _flower(habits[i], i, today, width, height),
                       ],
                     ),
                   ),
@@ -234,37 +234,26 @@ class _MeadowScreenState extends ConsumerState<MeadowScreen>
     );
   }
 
-  Widget _flower(Habit h, int i, ArtPack art, double w, double hgt) {
+  Widget _flower(Habit h, int i, int today, double w, double hgt) {
     final base = flowerPosition(h.id, i, w, hgt);
-    final stage = displayStage(h);
-    final size = 56.0 + stage * 20;
-    final boxW = max(120.0, size);
-    final frames = art.framesFor(h.flowerId, stage, healthOf(h));
-    final phase = (stableHash(h.id) % 628) / 100;
-    final angle = _still ? 0.0 : 0.05 * sin(2 * pi * _t.value * 4 + phase);
-    Widget image = frames.isEmpty
-        ? SizedBox(width: size, height: size)
-        : Image.asset(
-            frames.first,
-            width: size,
-            height: size,
-            fit: BoxFit.contain,
-            errorBuilder: (_, _, _) => SizedBox(width: size, height: size),
-          );
-    image = Transform.rotate(
-      angle: angle,
-      alignment: Alignment.bottomCenter,
-      child: image,
+    // One box size for every stage: the character itself grows.
+    const size = 120.0;
+    const boxW = size;
+    final due = needsWaterToday(h, today);
+    final Widget image = FlowerView(
+      look: lookOf(h, today),
+      size: size,
+      seed: stableHash(h.id),
     );
-    // A lost habit stays tappable as a faded seed patch.
-    if (h.lost) image = Opacity(opacity: 0.45, child: image);
     return Positioned(
       left: base.dx - boxW / 2,
       top: base.dy - size,
       width: boxW,
       child: Semantics(
         button: true,
-        label: '${h.name}, ${_stageWords[stage]}, ${_healthWords(h)}',
+        label:
+            '${h.name}, ${_stageWords[displayStage(h)]}, ${_healthWords(h)}'
+            '${due ? ', needs water today' : ''}',
         onTap: () => widget.onOpenHabit(h.id),
         excludeSemantics: true,
         child: GestureDetector(
@@ -298,12 +287,8 @@ class _MeadowScreenState extends ConsumerState<MeadowScreen>
 
   static String _healthWords(Habit h) => h.lost
       ? 'resting'
-      : switch (healthOf(h)) {
-          FlowerHealth.healthy => 'healthy',
-          FlowerHealth.thirsty => 'thirsty',
-          FlowerHealth.wilting => 'wilting',
-          FlowerHealth.petalLoss => 'losing petals',
-        };
+      : const ['healthy', 'thirsty', 'wilting', 'losing petals'][h.declineStep
+            .clamp(0, 3)];
 
   List<Widget> _insects(double w, double hgt) {
     // (bee?, cycles per loop, phase, base y fraction)

@@ -237,17 +237,20 @@ void main() {
       expect(() => water(h, 130), throwsStateError);
     });
 
-    test('extra waterings in a week add no growth beyond the weekly target', () {
-      // Day 102 is a Monday; a once-a-week habit asks for 1 watering a week.
-      var h = seed(Schedule.weekday(1));
-      for (final d in [103, 104, 105]) {
-        h = water(h, 105, forDay: d);
-      }
-      expect(h.wateredDays, {103, 104, 105});
-      expect(h.plantingWaterings, 1);
-      expect(growthStage(h), 1);
-      // The next week earns credit again.
-      expect(water(h, 110).plantingWaterings, 2);
-    });
+    test(
+      'extra waterings in a week add no growth beyond the weekly target',
+      () {
+        // Day 102 is a Monday; a once-a-week habit asks for 1 watering a week.
+        var h = seed(Schedule.weekday(1));
+        for (final d in [103, 104, 105]) {
+          h = water(h, 105, forDay: d);
+        }
+        expect(h.wateredDays, {103, 104, 105});
+        expect(h.plantingWaterings, 1);
+        expect(growthStage(h), 1);
+        // The next week earns credit again.
+        expect(water(h, 110).plantingWaterings, 2);
+      },
+    );
   });
 }
