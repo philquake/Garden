@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:garden/data/garden_db.dart';
+import 'package:garden/domain/habit_config.dart';
 import 'package:garden/domain/schedule.dart';
 import 'package:garden/domain/stats.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -70,6 +71,16 @@ void main() {
     await db.removeHabit('h1');
     expect(await db.habits(), isEmpty);
     expect(await db.log('h1'), isEmpty);
+  });
+
+  test('loadAll pairs each habit with its own history', () async {
+    await db.saveHabit(sample());
+    await db.saveHabit(sample(id: 'h2'));
+    await db.setValue('h2', 105, 4);
+    final all = await db.loadAll();
+    expect(all.map((t) => t.config.id), ['h1', 'h2']);
+    expect(all[0].log, isEmpty);
+    expect(all[1].log, {105: 4});
   });
 
   test('histories of different habits stay apart', () async {

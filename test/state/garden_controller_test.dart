@@ -1,206 +1,154 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:garden/data/habit_store.dart';
-import 'package:garden/domain/habit.dart';
 import 'package:garden/domain/schedule.dart';
+import 'package:garden/domain/stats.dart';
 import 'package:garden/state/garden_controller.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-Habit seed(String id, int today) => Habit.newSeed(
-  id: id,
-  name: id,
-  flowerId: 'tulip',
-  schedule: const Schedule.daily(),
-  today: today,
-);
-
-Future<ProviderContainer> make(SharedPreferences prefs, int Function() today) {
-  final c = ProviderContainer(
-    overrides: [
-      habitStoreProvider.overrideWithValue(HabitStore(prefs)),
-      todayProvider.overrideWithValue(today),
-    ],
-  );
-  addTearDown(c.dispose);
-  return Future.value(c);
-}
+import '../support.dart';
 
 void main() {
-  late SharedPreferences prefs;
-  setUp(() async {
-    SharedPreferences.setMockInitialValues({});
-    prefs = await SharedPreferences.getInstance();
+  test('add shows the habit and saves it', () async {
+    final db = FakeGardenDb();
+    final c = makeContainer(db: db);
+    await c.read(gardenProvider.notifier).add(habit('a'));
+    expect(c.read(gardenProvider).map((t) => t.config.id), ['a']);
+    expect(db.configs.keys, ['a']);
   });
 
-  test('ninth habit and duplicate id throw', () async {
-    final c = await make(prefs, () => 20000);
+  test('add rejects a duplicate id and an empty name', () async {
+    final c = makeContainer(habits: [tracked(habit('a'))]);
     final g = c.read(gardenProvider.notifier);
-    for (var i = 0; i < 8; i++) {
-      await g.add(seed('h$i', 20000));
-    }
-    expect(() => g.add(seed('h9', 20000)), throwsStateError);
-    expect(c.read(gardenProvider).length, 8);
-    final c2 = await make(prefs, () => 20000);
-    expect(
-      () => c2.read(gardenProvider.notifier).add(seed('h0', 20000)),
-      throwsStateError,
-    );
-  });
-
-  test('water persists across containers', () async {
-    var day = 20000;
-    final c = await make(prefs, () => day);
-    await c.read(gardenProvider.notifier).add(seed('a', day));
-    await c.read(gardenProvider.notifier).water('a');
-    final c2 = await make(prefs, () => day);
-    expect(c2.read(gardenProvider).single.wateredDays, {20000});
-    expect(
-      () => c2.read(gardenProvider.notifier).water('zzz'),
-      throwsStateError,
-    );
-  });
-
-  test('refresh with clock moved backwards changes nothing', () async {
-    var day = 20010;
-    final c = await make(prefs, () => day);
-    await c.read(gardenProvider.notifier).add(seed('a', day));
-    day = 20003;
-    final before = c.read(gardenProvider).single.toJson();
-    await c.read(gardenProvider.notifier).refresh();
-    expect(c.read(gardenProvider).single.toJson(), before);
-  });
-
-  test('40 days later the habit is lost with wateredDays intact', () async {
-    final c = await make(prefs, () => 20000);
-    await c.read(gardenProvider.notifier).add(seed('a', 20000));
-    await c.read(gardenProvider.notifier).water('a');
-    final c2 = await make(prefs, () => 20040);
-    final h = c2.read(gardenProvider).single;
-    expect(h.lost, isTrue);
-    expect(h.wateredDays, {20000});
+    expect(() => g.add(habit('a')), throwsStateError);
+    expect(() => g.add(habit('b', name: '  ')), throwsArgumentError);
+    expect(c.read(gardenProvider).length, 1);
   });
 
   test(
-    'ignoredReminders tracks missed days; no-change refresh saves nothing',
+    'update changes the settings but keeps history and creation day',
     () async {
-      var day = 20000;
-      final c = await make(prefs, () => day);
-      final g = c.read(gardenProvider.notifier);
-      await g.add(
-        Habit.newSeed(
-          id: 'a',
-          name: 'a',
-          flowerId: 'tulip',
-          schedule: const Schedule.daily(),
-          today: day,
-          reminderMinutes: 540,
-        ),
+      final db = FakeGardenDb([
+        tracked(habit('a', createdDay: 19990), [19995]),
+      ]);
+      final c = makeContainer(
+        habits: [
+          tracked(habit('a', createdDay: 19990), [19995]),
+        ],
+        db: db,
       );
-      day = 20005;
-      await g.refresh();
-      final h = c.read(gardenProvider).single;
-      expect(h.missedSinceWater, greaterThan(0));
-      expect(h.ignoredReminders, h.missedSinceWater);
-      expect(
-        HabitStore(prefs).load().single.ignoredReminders,
-        h.ignoredReminders,
-      );
-      // Remove the stored value: a no-op refresh must not write it back.
-      await prefs.clear();
-      await g.refresh();
-      expect(prefs.getKeys(), isEmpty);
-      await g.editDetails('a', reminderMinutes: -1);
-      expect(c.read(gardenProvider).single.ignoredReminders, 0);
+      await c
+          .read(gardenProvider.notifier)
+          .update(
+            habit(
+              'a',
+              name: 'Run',
+              schedule: Schedule.timesPerWeek(3),
+              createdDay: 5,
+            ),
+          );
+      final t = c.read(gardenProvider).single;
+      expect(t.config.name, 'Run');
+      expect(t.config.schedule, Schedule.timesPerWeek(3));
+      expect(t.config.createdDay, 19990);
+      expect(t.log, {19995: 1});
+      expect(db.configs['a']!.name, 'Run');
     },
   );
 
-  test('editDetails changes name, flower, reminder; validates', () async {
-    final c = await make(prefs, () => 20000);
-    final g = c.read(gardenProvider.notifier);
-    await g.add(seed('a', 20000));
-    await g.editDetails('a', name: '  Read  ', flowerId: 'daisy');
-    var h = c.read(gardenProvider).single;
-    expect([h.name, h.flowerId, h.reminderMinutes], ['Read', 'daisy', -1]);
-    await g.editDetails('a', reminderMinutes: 540);
-    h = c.read(gardenProvider).single;
-    expect([h.name, h.reminderMinutes], ['Read', 540]);
-    expect(HabitStore(prefs).load().single.reminderMinutes, 540);
-    expect(() => g.editDetails('a', name: '  '), throwsArgumentError);
-    expect(() => g.editDetails('zz', name: 'x'), throwsStateError);
+  test('remove takes the habit and its history away', () async {
+    final db = FakeGardenDb([
+      tracked(habit('a'), [testToday]),
+      tracked(habit('b')),
+    ]);
+    final c = makeContainer(
+      habits: [
+        tracked(habit('a'), [testToday]),
+        tracked(habit('b')),
+      ],
+      db: db,
+    );
+    await c.read(gardenProvider.notifier).remove('a');
+    expect(c.read(gardenProvider).map((t) => t.config.id), ['b']);
+    expect(db.logs.containsKey('a'), isFalse);
   });
 
-  Habit reminded(int today, {int minutes = 540}) => Habit.newSeed(
-    id: 'a',
-    name: 'a',
-    flowerId: 'tulip',
-    schedule: const Schedule.daily(),
-    today: today,
-    reminderMinutes: minutes,
-  );
-
-  test(
-    'changing the reminder time unpauses; three more misses pause again',
-    () async {
-      var day = 20000;
-      final c = await make(prefs, () => day);
+  group('setValue', () {
+    test('logs and clears a day, in memory and on disk', () async {
+      final db = FakeGardenDb([tracked(habit('a'))]);
+      final c = makeContainer(habits: [tracked(habit('a'))], db: db);
       final g = c.read(gardenProvider.notifier);
-      await g.add(reminded(day));
-      day = 20004; // three closed days missed
-      await g.refresh();
-      expect(c.read(gardenProvider).single.ignoredReminders, 3);
-      await g.editDetails('a', reminderMinutes: 600);
-      var h = c.read(gardenProvider).single;
-      expect(h.ignoredReminders, 0);
-      expect(h.reminderBaselineMissed, 3);
-      // Same time again is not a change: the count carries on.
-      await g.editDetails('a', reminderMinutes: 600, name: 'b');
-      expect(c.read(gardenProvider).single.reminderBaselineMissed, 3);
-      day = 20007;
-      await g.refresh();
-      h = c.read(gardenProvider).single;
-      expect(h.ignoredReminders, 3);
-    },
-  );
+      await g.setValue('a', testToday - 3, 1);
+      expect(c.read(gardenProvider).single.log, {testToday - 3: 1});
+      expect(db.logs['a'], {testToday - 3: 1});
+      await g.setValue('a', testToday - 3, null);
+      expect(c.read(gardenProvider).single.log, isEmpty);
+      expect(db.logs['a'], isEmpty);
+    });
 
-  test('switching a reminder on after four misses does not pause it', () async {
-    var day = 20000;
-    final c = await make(prefs, () => day);
-    final g = c.read(gardenProvider.notifier);
-    await g.add(seed('a', day));
-    day = 20005;
-    await g.refresh();
-    expect(c.read(gardenProvider).single.missedSinceWater, 4);
-    await g.editDetails('a', reminderMinutes: 540);
-    expect(c.read(gardenProvider).single.ignoredReminders, 0);
-    await g.editDetails('a', reminderMinutes: -1);
-    expect(c.read(gardenProvider).single.ignoredReminders, 0);
+    test(
+      'any past day since creation can be edited, not before or after',
+      () async {
+        final c = makeContainer(
+          habits: [tracked(habit('a', createdDay: testToday - 10))],
+        );
+        final g = c.read(gardenProvider.notifier);
+        await g.setValue('a', testToday - 10, 1);
+        await g.setValue('a', testToday, 1);
+        expect(() => g.setValue('a', testToday - 11, 1), throwsArgumentError);
+        expect(() => g.setValue('a', testToday + 1, 1), throwsArgumentError);
+        expect(() => g.setValue('a', testToday, -1), throwsArgumentError);
+      },
+    );
+
+    test('editing a past day recomputes the streak', () async {
+      final c = makeContainer(
+        habits: [
+          tracked(habit('a', createdDay: testToday - 5), [
+            testToday - 5,
+            testToday - 4,
+            testToday - 2,
+            testToday - 1,
+            testToday,
+          ]),
+        ],
+      );
+      int streak() => c.read(gardenProvider).single.stats(testToday).streak;
+      expect(streak(), 6); // day -3 was forgiven
+      await c.read(gardenProvider.notifier).setValue('a', testToday - 4, null);
+      expect(streak(), 6); // two free misses
+      await c.read(gardenProvider.notifier).setValue('a', testToday - 5, null);
+      // nothing logged before the gap, so nothing to forgive: run restarts
+      expect(streak(), 3);
+    });
   });
 
-  test('watering resets the reminder baseline', () async {
-    var day = 20000;
-    final c = await make(prefs, () => day);
-    final g = c.read(gardenProvider.notifier);
-    await g.add(reminded(day));
-    day = 20004;
-    await g.refresh();
-    await g.editDetails('a', reminderMinutes: 600);
-    expect(c.read(gardenProvider).single.reminderBaselineMissed, 3);
-    await g.water('a');
-    final h = c.read(gardenProvider).single;
-    expect([h.reminderBaselineMissed, h.ignoredReminders], [0, 0]);
+  group('tap', () {
+    test('a yes/no habit toggles today', () async {
+      final c = makeContainer(habits: [tracked(habit('a'))]);
+      final g = c.read(gardenProvider.notifier);
+      await g.tap('a');
+      expect(c.read(gardenProvider).single.log, {testToday: 1});
+      await g.tap('a');
+      expect(c.read(gardenProvider).single.log, isEmpty);
+    });
+
+    test('a numeric habit adds one each tap', () async {
+      final c = makeContainer(
+        habits: [tracked(habit('a', goal: const Goal(target: 8)))],
+      );
+      final g = c.read(gardenProvider.notifier);
+      await g.tap('a');
+      await g.tap('a');
+      expect(c.read(gardenProvider).single.log, {testToday: 2});
+    });
   });
 
-  test('remove deletes and persists; frees a place at the cap', () async {
-    final c = await make(prefs, () => 20000);
+  test('a failed write rolls the garden back and rethrows', () async {
+    final db = FakeGardenDb([tracked(habit('a'))]);
+    final c = makeContainer(habits: [tracked(habit('a'))], db: db);
+    db.failWrites = true;
     final g = c.read(gardenProvider.notifier);
-    for (var i = 0; i < 8; i++) {
-      await g.add(seed('h$i', 20000));
-    }
-    expect(() => g.remove('zz'), throwsStateError);
-    await g.remove('h3');
-    expect(c.read(gardenProvider).map((h) => h.id), isNot(contains('h3')));
-    expect(HabitStore(prefs).load().length, 7);
-    await g.add(seed('h9', 20000));
-    expect(c.read(gardenProvider).length, 8);
+    await expectLater(g.tap('a'), throwsStateError);
+    expect(c.read(gardenProvider).single.log, isEmpty);
+    await expectLater(g.add(habit('b')), throwsStateError);
+    expect(c.read(gardenProvider).length, 1);
   });
 }

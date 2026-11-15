@@ -1,59 +1,36 @@
 import 'package:sqflite/sqflite.dart';
 
+import '../domain/habit_config.dart';
 import '../domain/schedule.dart';
 import '../domain/stats.dart';
 
-/// Everything the tracker needs to know about a habit. History lives in the
-/// completions table, never on the habit.
-class HabitConfig {
-  const HabitConfig({
-    required this.id,
-    required this.name,
-    required this.flowerId,
-    required this.schedule,
-    required this.goal,
-    required this.createdDay,
-    this.unit = '',
-    this.reminderMinutes,
-  });
+Map<String, Object?> _toRow(HabitConfig h) => {
+  'id': h.id,
+  'name': h.name,
+  'flower_id': h.flowerId,
+  'kind': h.schedule.kind.name,
+  'sched_value': h.schedule.value,
+  'target': h.goal.target,
+  'at_most': h.goal.atMost ? 1 : 0,
+  'unit': h.unit,
+  'created_day': h.createdDay,
+  'reminder_minutes': h.reminderMinutes,
+};
 
-  final String id;
-  final String name;
-  final String flowerId;
-  final Schedule schedule;
-  final Goal goal;
-  final String unit;
-  final int createdDay;
-  final int? reminderMinutes;
-
-  Map<String, Object?> toRow() => {
-    'id': id,
-    'name': name,
-    'flower_id': flowerId,
-    'kind': schedule.kind.name,
-    'sched_value': schedule.value,
-    'target': goal.target,
-    'at_most': goal.atMost ? 1 : 0,
-    'unit': unit,
-    'created_day': createdDay,
-    'reminder_minutes': reminderMinutes,
-  };
-
-  factory HabitConfig.fromRow(Map<String, Object?> r) => HabitConfig(
-    id: r['id'] as String,
-    name: r['name'] as String,
-    flowerId: r['flower_id'] as String,
-    schedule: Schedule.fromJson({
-      'kind': r['kind'],
-      'n': r['sched_value'],
-      'weekday': r['sched_value'],
-    }),
-    goal: Goal(target: r['target'] as num, atMost: r['at_most'] == 1),
-    unit: r['unit'] as String,
-    createdDay: r['created_day'] as int,
-    reminderMinutes: r['reminder_minutes'] as int?,
-  );
-}
+HabitConfig _fromRow(Map<String, Object?> r) => HabitConfig(
+  id: r['id'] as String,
+  name: r['name'] as String,
+  flowerId: r['flower_id'] as String,
+  schedule: Schedule.fromJson({
+    'kind': r['kind'],
+    'n': r['sched_value'],
+    'weekday': r['sched_value'],
+  }),
+  goal: Goal(target: r['target'] as num, atMost: r['at_most'] == 1),
+  unit: r['unit'] as String,
+  createdDay: r['created_day'] as int,
+  reminderMinutes: r['reminder_minutes'] as int?,
+);
 
 class GardenDb {
   GardenDb._(this._db);
@@ -96,18 +73,44 @@ class GardenDb {
 
   Future<void> close() => _db.close();
 
+  /// Every habit with its full history, in creation order.
+  Future<List<Tracked>> loadAll() async => [
+    for (final h in await habits()) Tracked(h, await log(h.id)),
+  ];
+
   Future<List<HabitConfig>> habits() async => [
-    for (final r in await _db.query('habits', orderBy: 'rowid'))
-      HabitConfig.fromRow(r),
+    for (final r in await _db.query('habits', orderBy: 'rowid')) _fromRow(r),
   ];
 
   /// Insert or update. Replacing would cascade-delete the history, so update
   /// in place when the habit exists.
   Future<void> saveHabit(HabitConfig h) async {
-    final row = h.toRow();
-    final n = await _db.update('habits', row, where: 'id = ?', whereArgs: [h.id]);
+    final row = _toRow(h);
+    final n = await _db.update(
+      'habits',
+      row,
+      where: 'id = ?',
+      whereArgs: [h.id],
+    );
     if (n == 0) await _db.insert('habits', row);
   }
+
+  /// Swaps the whole garden for [all] in one transaction: either everything
+  /// is replaced or, if anything fails, nothing is.
+  Future<void> replaceAll(List<Tracked> all) => _db.transaction((txn) async {
+    await txn.delete('completions');
+    await txn.delete('habits');
+    for (final t in all) {
+      await txn.insert('habits', _toRow(t.config));
+      for (final e in t.log.entries) {
+        await txn.insert('completions', {
+          'habit_id': t.config.id,
+          'day': e.key,
+          'value': e.value,
+        });
+      }
+    }
+  });
 
   Future<void> removeHabit(String id) =>
       _db.delete('habits', where: 'id = ?', whereArgs: [id]);
