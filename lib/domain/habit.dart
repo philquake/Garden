@@ -22,6 +22,7 @@ class Habit {
     required this.plantingNumber,
     required this.reminderMinutes,
     this.reminderBaselineMissed = 0,
+    this.freshStartDay = -1,
   }) : wateredDays = Set.unmodifiable(wateredDays);
 
   /// A freshly planted seed; the planting day counts as a grace day.
@@ -72,6 +73,9 @@ class Habit {
   /// here do not count as ignored reminders.
   final int reminderBaselineMissed;
 
+  /// Day of a fresh start not yet followed by a new watering, or -1.
+  final int freshStartDay;
+
   /// Reminders ignored in a row: scheduled misses since the last watering or
   /// reminder change (0 when the habit has no reminder).
   int get ignoredReminders =>
@@ -93,6 +97,7 @@ class Habit {
     int? plantingNumber,
     int? reminderMinutes,
     int? reminderBaselineMissed,
+    int? freshStartDay,
   }) => Habit(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -110,6 +115,7 @@ class Habit {
     reminderMinutes: reminderMinutes ?? this.reminderMinutes,
     reminderBaselineMissed:
         reminderBaselineMissed ?? this.reminderBaselineMissed,
+    freshStartDay: freshStartDay ?? this.freshStartDay,
   );
 
   Map<String, dynamic> toJson() => {
@@ -128,6 +134,7 @@ class Habit {
     'plantingNumber': plantingNumber,
     'reminderMinutes': reminderMinutes,
     'reminderBaselineMissed': reminderBaselineMissed,
+    'freshStartDay': freshStartDay,
   };
 
   factory Habit.fromJson(Map<String, dynamic> j) => Habit(
@@ -149,5 +156,6 @@ class Habit {
     reminderMinutes: j['reminderMinutes'] as int,
     // Absent in gardens saved before this field existed.
     reminderBaselineMissed: j['reminderBaselineMissed'] as int? ?? 0,
+    freshStartDay: j['freshStartDay'] as int? ?? -1,
   );
 }

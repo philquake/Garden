@@ -36,6 +36,7 @@ Habit water(Habit h, int today, {int? forDay}) {
     reminderBaselineMissed: 0,
     declineStep: max(0, a.declineStep - 1),
     lastWaterDay: max(a.lastWaterDay, day),
+    freshStartDay: -1,
   );
 }
 
@@ -71,6 +72,7 @@ Habit freshStart(Habit h, int today) {
     lastWaterDay: today,
     evaluatedDay: today,
     lost: false,
+    freshStartDay: today,
   );
 }
 
@@ -87,5 +89,6 @@ Habit replant(Habit h, int today) {
     evaluatedDay: today,
     lost: false,
     plantingNumber: a.plantingNumber + 1,
+    freshStartDay: -1,
   );
 }
