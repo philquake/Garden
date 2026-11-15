@@ -96,6 +96,7 @@ this order; the first match wins.
 | # | Condition | Face | Pose and motion |
 |---|---|---|---|
 | 1 | `lost` | peacefully asleep | stage 0 seed, faded (the current 0.45 opacity), still |
+| 1a | `declineStep >= 1` and already watered today | hopeful, looking up | the pose of its decline step (upright, droop or slump); no bubble |
 | 2 | `declineStep == 3` (petal loss) | sad, one tear | slumped; some petals missing, two lying on the ground; barely moves |
 | 3 | `declineStep == 2` (wilting) | worried, brows up, glancing at the viewer | stem and head droop; slow sway |
 | 4 | `freshStartDay >= 0` and `declineStep == 0` | hopeful, looking up | upright; on first showing, lifts slowly back upright |
@@ -108,8 +109,11 @@ this order; the first match wins.
 Wilting and petal loss apply at every stage. Stages 0 and 1 have no petals,
 so they only droop and change face.
 
-**Water-drop thought bubble:** shown whenever the flower needs water today or
-is thirsty (`declineStep >= 1`) and is not lost, whichever row sets the face.
+**Water-drop thought bubble:** shown whenever the flower has not been watered
+today, is not lost, and either needs water today or is thirsty
+(`declineStep >= 1`), whichever row sets the face. (Row 1a and the
+"not watered today" condition were added during the build: a flower already
+watered today cannot be helped further, so it must not keep asking.)
 So a hopeful, wilting or sad flower that is due today also shows the bubble,
 and the meadow's "needs water today" label follows the same rule. (Author's
 call: a fresh start must not hide that a flower is due. Once a fresh-started
@@ -164,8 +168,8 @@ differs per flower (seeded from the habit id, as sway phase is today).
 | Launcher icon, splash (Android vector drawables) | plain flower | the happy full-bloom daisy; paper background stays |
 
 Screen-reader labels keep their current wording. The meadow label adds
-"needs water today" when the flower needs water today, so the thought bubble
-is not the only signal.
+"needs water today" whenever the bubble shows, so the thought bubble is not
+the only signal.
 
 ## Removed
 

@@ -4,7 +4,6 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../domain/due.dart';
 import '../domain/growth.dart';
 import '../domain/habit.dart';
 import '../domain/messages.dart';
@@ -239,9 +238,9 @@ class _MeadowScreenState extends ConsumerState<MeadowScreen>
     // One box size for every stage: the character itself grows.
     const size = 120.0;
     const boxW = size;
-    final due = needsWaterToday(h, today);
+    final look = lookOf(h, today);
     final Widget image = FlowerView(
-      look: lookOf(h, today),
+      look: look,
       size: size,
       seed: stableHash(h.id),
     );
@@ -253,7 +252,7 @@ class _MeadowScreenState extends ConsumerState<MeadowScreen>
         button: true,
         label:
             '${h.name}, ${_stageWords[displayStage(h)]}, ${_healthWords(h)}'
-            '${due ? ', needs water today' : ''}',
+            '${look.bubble ? ', needs water today' : ''}',
         onTap: () => widget.onOpenHabit(h.id),
         excludeSemantics: true,
         child: GestureDetector(

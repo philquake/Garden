@@ -105,6 +105,25 @@ void main() {
       expect(find.bySemanticsLabel('Habit b, seed, healthy'), findsOneWidget);
     });
 
+    testWidgets('a thirsty flower on an off day shows the bubble and says so', (
+      tester,
+    ) async {
+      // Friday; a Monday habit that has missed once.
+      final thirsty = Habit.newSeed(
+        id: 'a',
+        name: 'Habit a',
+        flowerId: 'tulip',
+        schedule: Schedule.weekday(1),
+        today: _today,
+      ).copyWith(declineStep: 1);
+      await _pump(tester, [thirsty], meadow);
+      expect(_view(tester, const ValueKey('flower-a')).look.bubble, isTrue);
+      expect(
+        find.bySemanticsLabel('Habit a, seed, thirsty, needs water today'),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('a lost flower is a faded seed', (tester) async {
       await _pump(tester, [_lost()], meadow);
       final look = _view(tester, const ValueKey('flower-h1')).look;
