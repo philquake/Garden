@@ -8,8 +8,11 @@ import 'package:sqflite/sqflite.dart';
 import 'analytics/analytics.dart';
 import 'app.dart';
 import 'data/garden_db.dart';
+import 'demo/demo.dart';
+import 'domain/day.dart';
 import 'notify/notification_sync.dart';
 import 'notify/scheduler.dart';
+import 'purchases/purchases.dart';
 import 'state/garden_controller.dart';
 
 Future<void> main() async {
@@ -17,8 +20,9 @@ Future<void> main() async {
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   final db = await GardenDb.open(
     databaseFactory,
-    p.join(await getDatabasesPath(), 'garden.db'),
+    p.join(await getDatabasesPath(), demoMode ? 'garden_demo.db' : 'garden.db'),
   );
+  if (demoMode) await db.replaceAll(demoHabits(dayIndex(DateTime.now())));
   final habits = await db.loadAll();
   final prefs = await SharedPreferences.getInstance();
   NotificationScheduler scheduler = const NoopScheduler();
@@ -35,6 +39,8 @@ Future<void> main() async {
         gardenDbProvider.overrideWithValue(db),
         initialHabitsProvider.overrideWithValue(habits),
         notificationSchedulerProvider.overrideWithValue(scheduler),
+        if (demoMode)
+          purchasesProvider.overrideWithValue(const DemoPurchases()),
         // shortcut: no analytics backend chosen yet, so events go nowhere; swap
         // NoopSink for the real one when it is.
         analyticsProvider.overrideWithValue(Analytics(prefs, const NoopSink())),
