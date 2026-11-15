@@ -1,10 +1,13 @@
 # Garden redesign: Habit Leaf-style tracker with stats, forgiveness and one-time unlock
 
 Status: decisions confirmed by the user in a grilling session on 2026-11-15.
-Milestones 1-5 are built on branch `feat/habit-leaf-redesign` and covered by
-widget and unit tests; milestone 6 is drafted in `docs/store/listing-draft.md`.
+Milestones 1-5 are built and merged to `main`, covered by widget and unit
+tests; milestone 6 is drafted in `docs/store/listing-draft.md`. Built since:
+30 plants with five growth stages each (replacing the four drawn flowers),
+demo mode (`--dart-define=DEMO=true`), and a calm colourful theme with
+reworked screen layouts.
 Not done: the real store purchase (RevenueCat), the analytics backend and crash
-reporting, and any run on a real device or emulator.
+reporting, and any run on a real device.
 
 ## Goal
 
@@ -13,10 +16,11 @@ Turn Garden from a watercolour meadow with a neglect/decline system into a card-
 ## Decisions
 
 ### Screens
-- **Home**: list of habit cards replaces the meadow (meadow cut). Each card: name, streak or "Habit formed ✓", grace note ("37 days · 1 grace used"), flower, heatmap of recent days. Tap logs +1 (or marks yes/no done). Long-press opens an exact-value box.
+- **Home**: a dated "today" card with a progress bar, then a list of habit cards (the meadow is cut). Each card: name, streak or "Habit formed ✓", grace note ("37 days · 1 grace used"), plant, recent days beside the name. Tapping the log button logs +1 (or marks yes/no done); long-press opens an exact-value box; tapping the card opens the detail screen.
 - **Detail**: score %, month and year change, total completions, score line over time, history bars (week/month/year toggle), calendar heatmap, best streaks. Charts hand-drawn with CustomPainter, no chart package. Tapping any past day edits it.
 - **Settings**: Restore purchase, backup and transfer, CSV export, reminders default, analytics opt-in toggle.
-- **Look**: light and dark themes, cards, Newsreader headings. Each habit's flower sets its chart colour.
+- **Look**: light and dark themes (warm oat background, bordered white cards, deep sage actions), Newsreader headings. Each habit's plant sets its colour, used as a soft wash on its card and detail header and in its charts.
+- **Plants**: 30 plants in four groups (Flowering, Leafy, Succulents, Tall), picked from a grouped picker on the habit form. Each has five growth stages as images (`assets/plants/<id>_<stage>.png`, SVG sources in `docs/art/plants/stages`). Motion is described in `2026-11-14-animated-flower-characters-design.md`.
 
 ### Habit model
 - Types: yes/no, or numeric (unit, daily target, "at least" or "at most").
@@ -29,8 +33,8 @@ Turn Garden from a watercolour meadow with a neglect/decline system into a card-
 - Daily and fixed-weekday habits: 2 free misses per calendar month, applied automatically, shown on the card.
 - "N times a week" habits: a week is met when N is done; streak counts met weeks; no allowance.
 - Loop-style decaying score on the detail screen.
-- Flowers never die. Remove "lost", "replant", the 30-day loss, the decline steps and ignored-reminder suppression. Fresh start is no longer needed.
-- "Habit formed ✓" after 66 qualifying days. Flower grows in stages toward 66, stays in bloom after, and its mood follows the recent score.
+- Plants never die. No loss, replant, decline steps, fresh start or ignored-reminder suppression.
+- "Habit formed ✓" after 66 qualifying days. The plant grows in five stages toward 66 and stays full grown after. Once a habit has 5 completions, its plant leans a little while the recent score is low and stands straight again as it recovers.
 
 ### Pricing and paywall
 - Free download: 3 habits, overview stats (score ring, month/year change, total), the current month on the calendar, forgiveness included. Locked: score and history charts, best streaks, earlier months, CSV export, backup and restore.
@@ -64,7 +68,7 @@ Android and iOS together.
 ## Known caveats
 - OS backup cannot be verified from inside the app (hence the manual file).
 - Opt-in analytics undercounts.
-- Existing code to remove or rework: `lib/domain/neglect.dart`, decline and lost logic in `rules.dart` and `habit.dart`, `meadow_screen.dart`, `meadow_painter.dart`, notification suppression.
+- The old meadow, decline and loss code and notification suppression have been removed.
 
 ## Not in scope
 Cloud sync, accounts, widgets, social features, subscriptions.
