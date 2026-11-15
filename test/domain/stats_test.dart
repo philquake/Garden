@@ -7,13 +7,12 @@ const mon = 4;
 
 Map<int, num> done(Iterable<int> days) => {for (final d in days) d: 1};
 
-Stats daily(Iterable<int> days, int today, {int created = mon}) =>
-    computeStats(
-      schedule: const Schedule.daily(),
-      createdDay: created,
-      log: done(days),
-      today: today,
-    );
+Stats daily(Iterable<int> days, int today, {int created = mon}) => computeStats(
+  schedule: const Schedule.daily(),
+  createdDay: created,
+  log: done(days),
+  today: today,
+);
 
 void main() {
   group('daily streak', () {
@@ -25,11 +24,14 @@ void main() {
       expect(daily([4, 5, 6], 7).streak, 3);
     });
 
-    test('a miss within the monthly allowance is forgiven and keeps the streak', () {
-      final s = daily([4, 6, 7], 7); // day 5 missed
-      expect(s.streak, 4);
-      expect(s.graceUsed, 1);
-    });
+    test(
+      'a miss within the monthly allowance is forgiven and keeps the streak',
+      () {
+        final s = daily([4, 6, 7], 7); // day 5 missed
+        expect(s.streak, 4);
+        expect(s.graceUsed, 1);
+      },
+    );
 
     test('a third miss in one month breaks the streak', () {
       // misses on 5, 6, 7; met on 8
@@ -48,8 +50,42 @@ void main() {
     test('best runs are listed longest first', () {
       // 4,5,6 met; 7,8,9 missed (7,8 forgiven, 9 breaks); 10,11 met.
       final s = daily([4, 5, 6, 10, 11], 11);
-      expect(s.bestRuns.first.length, greaterThanOrEqualTo(s.bestRuns.last.length));
+      expect(
+        s.bestRuns.first.length,
+        greaterThanOrEqualTo(s.bestRuns.last.length),
+      );
       expect(s.bestRuns, isNotEmpty);
+    });
+  });
+
+  group('forgiveness only protects a live run', () {
+    test('a new habit with nothing logged has no streak and no grace used', () {
+      final s = daily([], 6);
+      expect(s.streak, 0);
+      expect(s.graceUsed, 0);
+      expect(s.qualifyingDays, 0);
+    });
+
+    test('an abandoned habit has no streak and stops earning days', () {
+      final a = daily([4], 40);
+      final b = daily([4], 120);
+      expect(a.streak, 0);
+      expect(a.qualifyingDays, 1);
+      expect(b.qualifyingDays, 1);
+      expect(b.formed, isFalse);
+    });
+
+    test(
+      'free misses right after the last met day are spent but not earned',
+      () {
+        final s = daily([4, 5, 6], 8); // 7 forgiven, 8 pending
+        expect(s.streak, 3);
+        expect(s.graceUsed, 1);
+      },
+    );
+
+    test('the miss is earned once a met day follows it', () {
+      expect(daily([4, 5, 6, 8], 8).streak, 5);
     });
   });
 
@@ -133,7 +169,8 @@ void main() {
 
     test('forgiven days count towards it', () {
       // 28 met days and 2 forgiven misses (10 and 11)
-      final days = List.generate(30, (i) => 4 + i)..removeWhere((d) => d == 10 || d == 11);
+      final days = List.generate(30, (i) => 4 + i)
+        ..removeWhere((d) => d == 10 || d == 11);
       final s = daily(days, 33);
       expect(s.qualifyingDays, 30);
     });

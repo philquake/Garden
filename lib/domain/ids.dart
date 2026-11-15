@@ -12,3 +12,12 @@ String newHabitId([Random? random]) {
   return (t & 0xFFFFFFFFFFFF).toRadixString(16).padLeft(12, '0') +
       r.nextInt(0x10000).toRadixString(16).padLeft(4, '0');
 }
+
+/// Stable 32-bit hash (FNV-1a), so a habit's flower always sways the same way.
+int stableHash(String s) {
+  var h = 0x811c9dc5;
+  for (final c in s.codeUnits) {
+    h = ((h ^ c) * 0x01000193) & 0xFFFFFFFF;
+  }
+  return h;
+}

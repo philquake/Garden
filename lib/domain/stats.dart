@@ -16,6 +16,13 @@ class Goal {
   bool met(num value) => atMost ? value <= target : value >= target;
 }
 
+/// Whether [day] counts as done. An unlogged day is 0, so it meets an "at
+/// most" goal; times-a-week habits count only logged days (shortcut: "at most"
+/// targets are meant for daily habits).
+bool dayMet(Schedule schedule, Goal goal, Map<int, num> log, int day) =>
+    goal.met(log[day] ?? 0) &&
+    (schedule.kind != ScheduleKind.timesPerWeek || log.containsKey(day));
+
 enum PeriodState { met, forgiven, missed, pending }
 
 /// One scheduled day (daily, weekday) or one week (times a week).
@@ -66,6 +73,10 @@ class Stats {
 
   bool get formed => qualifyingDays >= formedAfter;
 
+  /// Today (or this week, for times-a-week habits) is still open: not met yet.
+  bool get due =>
+      periods.isNotEmpty && periods.last.state == PeriodState.pending;
+
   /// 0..1 growth towards "habit formed".
   double get growth => min(qualifyingDays / formedAfter, 1);
 }
@@ -81,10 +92,7 @@ Stats computeStats({
   Goal goal = const Goal(),
 }) {
   final weekly = schedule.kind == ScheduleKind.timesPerWeek;
-  // An unlogged day is 0, so it meets an "at most" goal. Weekly habits count
-  // only logged days; shortcut: "at most" targets are meant for daily habits.
-  bool counts(int d) =>
-      goal.met(log[d] ?? 0) && (!weekly || log.containsKey(d));
+  bool counts(int d) => dayMet(schedule, goal, log, d);
 
   final periods = <Period>[];
   var qualifying = 0;
@@ -119,6 +127,9 @@ Stats computeStats({
     }
   } else {
     final usedByMonth = <int, int>{};
+    // Free misses only bridge a live run: nothing is forgiven before the first
+    // met day or after a miss the allowance could not cover.
+    var live = false;
     for (var d = createdDay; d <= today; d++) {
       if (schedule.kind == ScheduleKind.weekday &&
           weekdayOf(d) != schedule.value) {
@@ -126,28 +137,45 @@ Stats computeStats({
       }
       if (counts(d)) {
         periods.add(Period(d, PeriodState.met));
-        qualifying++;
+        live = true;
       } else if (d == today) {
         periods.add(Period(d, PeriodState.pending));
       } else {
         final m = _monthKey(d);
         final used = usedByMonth[m] ?? 0;
-        if (used < freeMissesPerMonth) {
+        if (live && used < freeMissesPerMonth) {
           usedByMonth[m] = used + 1;
           periods.add(Period(d, PeriodState.forgiven));
-          qualifying++;
         } else {
+          live = false;
           periods.add(Period(d, PeriodState.missed));
         }
       }
     }
   }
 
+  // A forgiven period counts only when a met one follows it before the next
+  // miss; trailing ones are allowance spent but not yet earned.
+  final counted = List<bool>.filled(periods.length, false);
+  var followed = false;
+  for (var i = periods.length - 1; i >= 0; i--) {
+    switch (periods[i].state) {
+      case PeriodState.met:
+        counted[i] = followed = true;
+      case PeriodState.forgiven:
+        counted[i] = followed;
+      case PeriodState.missed:
+        followed = false;
+      case PeriodState.pending:
+        break;
+    }
+  }
+  if (!weekly) qualifying = counted.where((c) => c).length;
+
   var streak = 0;
-  for (final p in periods.reversed) {
-    if (p.state == PeriodState.pending) continue;
-    if (p.state == PeriodState.missed) break;
-    streak++;
+  for (var i = periods.length - 1; i >= 0; i--) {
+    if (periods[i].state == PeriodState.missed) break;
+    if (counted[i]) streak++;
   }
 
   final runs = <Run>[];
@@ -159,15 +187,12 @@ Stats computeStats({
     length = 0;
   }
 
-  for (final p in periods) {
-    switch (p.state) {
-      case PeriodState.missed:
-        close();
-      case PeriodState.pending:
-        break;
-      case PeriodState.met || PeriodState.forgiven:
-        start ??= p.day;
-        length++;
+  for (var i = 0; i < periods.length; i++) {
+    if (periods[i].state == PeriodState.missed) {
+      close();
+    } else if (counted[i]) {
+      start ??= periods[i].day;
+      length++;
     }
   }
   close();

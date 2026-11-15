@@ -1,4 +1,5 @@
-import 'rules.dart';
+/// The day rolls over at 03:00 local time, so late nights count for the day before.
+const dayStartHour = 3;
 
 /// Day index from wall-clock fields only (no elapsed-time arithmetic), so DST
 /// transitions cannot shift the day. DateTime.utc normalises a negative hour
@@ -8,7 +9,7 @@ int dayIndexFromWallClock(int year, int month, int day, int hour) {
     year,
     month,
     day,
-    hour - Rules.dayStartHour,
+    hour - dayStartHour,
   ).millisecondsSinceEpoch;
   return _floorDiv(ms, Duration.millisecondsPerDay);
 }
@@ -36,3 +37,13 @@ const dayNames = [
 ];
 
 int _floorDiv(int a, int b) => (a - (a % b)) ~/ b;
+
+/// Calendar date of a day index (day 0 is 1970-01-01).
+DateTime dateOf(int day) => DateTime.utc(1970, 1, 1 + day);
+
+/// "2024-10-04", for files that other programs read.
+String isoDate(int day) {
+  final d = dateOf(day);
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${d.year.toString().padLeft(4, '0')}-${two(d.month)}-${two(d.day)}';
+}
