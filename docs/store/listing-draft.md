@@ -30,7 +30,8 @@ good month.
 - Yes/no habits and number habits ("at least 8 glasses", "at most 2 coffees")
 - Reminders at the time you choose
 - Light and dark themes
-- Four cartoon flowers to choose from
+- 30 plants to choose from (flowering, leafy, succulents and tall), each
+  growing through five stages
 
 **Yours, not ours**
 - No account and no sign-up

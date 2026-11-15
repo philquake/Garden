@@ -1,5 +1,9 @@
 # Watercolour Garden Habit Tracker: Design
 
+> **Superseded** by `2026-11-15-habit-leaf-redesign-design.md`. The meadow,
+> watercolour look, habit cap and fresh start described here are no longer
+> built. Kept for history only.
+
 Working title only (not chosen by the owner): "Garden".
 
 ## Intent and the why
@@ -11,7 +15,6 @@ A phone habit tracker where each habit is a flower in a living watercolour meado
 - A home screen that is a single painted meadow, light theme, watercolour look throughout.
 - The garden feels alive: flowers sway as if in wind; bees and butterflies drift through.
 - Logging a habit is the watering of a flower, a small satisfying moment.
-- Neglect is visible but gentle, and recoverable.
 - Struggling users are met with encouragement and a no-penalty restart.
 
 ## Non-goals
@@ -25,7 +28,6 @@ A phone habit tracker where each habit is a flower in a living watercolour meado
 
 - It does not look watercoloured (flat, vector or generic UI look).
 - It shames or punishes people for missing days.
-- Permanent loss of a flower happens as a surprise or after a short slip.
 
 ## Platform and how it is made
 
@@ -56,28 +58,26 @@ A phone habit tracker where each habit is a flower in a living watercolour meado
 1. **Seed** on planting.
 2. **Grows through stages** toward full bloom as the habit is kept up. (Number of stages and what advances a stage are the builder's to define.)
 3. **In bloom** while the habit is maintained. (My guess.)
-4. **Neglect:** when a habit's own schedule is going unmet, the flower **wilts**, then **loses petals** (owner's decision). Wilting follows each habit's schedule, so a weekly habit does not droop after two days.
-5. **Recovery:** returning to the habit brings the flower back.
-6. **Loss:** if neglected long enough the flower is **lost for good** (owner's decision). The owner did not specify how long; the builder must pick this generously and make the app warn well before it happens.
+
+The flower never dies or wilts.
 
 ## Struggling users
 
 - If someone is struggling consistently, the app shows **encouraging messages** (owner's decision).
-- It offers a **fresh start for a flower, with no penalty** (owner's decision): the flower is renewed without losing the person's history or being treated as failed. *My call:* the app offers this when a flower reaches a late neglect stage or a person misses habits repeatedly, as an offer, never automatically and never as a scold.
+- It offers a **fresh start for a flower, with no penalty** (owner's decision): the flower is renewed without losing the person's history or being treated as failed. *My call:* the app offers this when a person misses habits repeatedly, as an offer, never automatically and never as a scold.
 
 ## Decisions from the builder check
 
 Owner's decisions:
 - **Fresh start:** the flower returns to the growth stage it had reached. The history (calendar, counts) stays exactly as logged. Nothing is erased or marked as failed.
-- **Permanent loss:** the habit is kept. The person can replant a seed for it with the old history attached. The habit is never deleted by loss.
 
 My calls (the owner has not seen these in detail; marked so they can be checked):
 - **Watering rules:** extra taps on the same day replay the animation but count once. Watering on an unscheduled day still counts toward growth. Back-filling is allowed for the last 3 days.
-- **Day boundary:** a day ends at 3am local time. The week starts on Monday. Store dates, not timestamps; changing the device clock must not cause loss.
-- **Art:** build against placeholder art first. The loader accepts any number of frames per flower and per state, so the real generated pack drops in later.
+- **Day boundary:** a day ends at 3am local time. The week starts on Monday. Store dates, not timestamps; changing the device clock must not change the history.
+- **Art:** build against placeholder art first. The loader accepts any number of frames per flower and per stage, so the real generated pack drops in later.
 - **Device scope:** phones only, portrait only. Include a reduced-motion setting that calms sway and insects.
 - **Meadow layout:** flowers are auto-placed in planting order on a background that extends as flowers are added. No drag-to-arrange in the first version.
-- **Reminders:** one optional reminder per habit. A final warning before a flower would be lost is delivered as a notification as well as in-app.
+- **Reminders:** one optional reminder per habit.
 - **Minimum OS version:** the builder picks a sensible current floor.
 
 ## Adopted rules (proposed by me, adopted by the owner)
@@ -87,15 +87,6 @@ My calls (the owner has not seen these in detail; marked so they can be checked)
 - Progress comes from watering on schedule, scaled so keeping a habit up for about four weeks reaches full bloom whatever its frequency (a daily habit needs about 28 waterings, a weekly one about 4).
 - Progress is gradual, so each watering visibly changes the flower a little.
 - At full bloom the flower stays there while the habit is kept up.
-
-### Neglect and loss
-Counted in missed scheduled occurrences, with a minimum number of days so weekly habits are not punished too fast.
-- **Thirsty:** after the first missed occurrence, a slight droop (a hint, not a penalty).
-- **Wilting:** after two missed occurrences and at least 4 days since last watering.
-- **Petal loss:** after three missed occurrences and at least 8 days. One petal falls for each further missed occurrence.
-- **Lost for good:** only after 30 days with no watering at all. Any watering reverses one step of decline.
-- **Warnings:** in-app and notification warnings at days 14, 21 and 27, each offering the fresh start.
-- The fresh start is available from the petal-loss stage onward.
 
 ### Habit cap
 8 habits at once. Designed so the cap can be raised later (for example as a setting or reward).
@@ -113,7 +104,6 @@ Shown when a person is struggling (for example 3 or more missed occurrences acro
 - At most 2 notifications a day in total, with similar ones grouped.
 - Quiet hours 10pm to 8am.
 - After 3 ignored reminders in a row for a habit, pause that habit's reminders and offer to change the time instead of nagging.
-- The final warnings before permanent loss are the only notifications exempt from the daily limit.
 
 ## Look and feel
 
