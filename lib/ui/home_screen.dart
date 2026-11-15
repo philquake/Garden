@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../domain/day.dart';
 import '../state/garden_controller.dart';
 import '../purchases/purchases.dart';
 import 'analytics_card.dart';
 import 'habit_card.dart';
+import 'history.dart';
 import 'paywall.dart';
 import 'settings_screen.dart';
+import 'theme.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key, required this.onAdd, required this.onOpen});
@@ -28,7 +31,6 @@ class HomeScreen extends ConsumerWidget {
         open++;
       }
     }
-    final theme = Theme.of(context);
     final unlocked = ref.watch(unlockedProvider);
     // The unlock is offered when the 4th habit is asked for, never earlier.
     void add() => !unlocked && habits.length >= freeHabitLimit
@@ -47,24 +49,6 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
         ],
-        bottom: habits.isEmpty
-            ? null
-            : PreferredSize(
-                preferredSize: const Size.fromHeight(28),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      '$done of ${done + open} done today',
-                      key: const Key('today-summary'),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
       ),
       body: habits.isEmpty
           ? Column(
@@ -77,8 +61,9 @@ class HomeScreen extends ConsumerWidget {
               ],
             )
           : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
               children: [
+                _TodayCard(today: today, done: done, total: done + open),
                 const AnalyticsAskCard(),
                 for (final h in habits) ...[
                   HabitCard(
@@ -86,7 +71,7 @@ class HomeScreen extends ConsumerWidget {
                     habit: h,
                     onOpen: () => onOpen(h.config.id),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                 ],
               ],
             ),
@@ -98,6 +83,60 @@ class HomeScreen extends ConsumerWidget {
               icon: const Icon(Icons.add),
               label: const Text('Add habit'),
             ),
+    );
+  }
+}
+
+/// Date, how many of today's habits are done, and a calm progress bar.
+class _TodayCard extends StatelessWidget {
+  const _TodayCard({
+    required this.today,
+    required this.done,
+    required this.total,
+  });
+  final int today;
+  final int done;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final d = dateOf(today);
+    final all = total > 0 && done == total;
+    return SectionCard(
+      color: theme.colorScheme.primaryContainer,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${dayNames[d.weekday - 1]}, ${d.day} ${monthNames[d.month - 1]}',
+            style: theme.textTheme.labelMedium,
+          ),
+          const SizedBox(height: 2),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '$done of $total done today',
+                  key: const Key('today-summary'),
+                  style: theme.textTheme.titleLarge,
+                ),
+              ),
+              if (all)
+                Icon(Icons.spa_outlined, color: theme.colorScheme.primary),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: total == 0 ? 0 : done / total,
+              minHeight: 8,
+              backgroundColor: theme.colorScheme.surfaceContainerLowest,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -308,7 +308,7 @@ class HeatStrip extends StatelessWidget {
   final int createdDay;
   final Color color;
 
-  static const _cell = 11.0;
+  static const _cell = 9.0;
 
   @override
   Widget build(BuildContext context) {
@@ -356,7 +356,7 @@ class _HeatPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     const cell = HeatStrip._cell;
-    const r = 3.6;
+    const r = 3.0;
     final thisWeek = weekIndex(today);
     // Right-align so the newest week sits at the right edge.
     final offset = size.width - cols * cell;

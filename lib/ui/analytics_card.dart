@@ -14,43 +14,49 @@ class AnalyticsAskCard extends ConsumerWidget {
       return const SizedBox.shrink();
     }
     final consent = ref.read(analyticsConsentProvider.notifier);
-    return Card(
-      key: const Key('analytics-ask'),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Help improve Garden?',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Share anonymous counts, like which screens get used. Never '
-              'your habits, names or notes. You can change this in Settings.',
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  key: const Key('analytics-no'),
-                  style: TextButton.styleFrom(minimumSize: const Size(44, 44)),
-                  onPressed: () => consent.set(false),
-                  child: const Text('No thanks'),
-                ),
-                FilledButton(
-                  key: const Key('analytics-yes'),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size(44, 44),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Card(
+        key: const Key('analytics-ask'),
+        color: Theme.of(context).colorScheme.tertiaryContainer,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Help improve Garden?',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Share anonymous counts, like which screens get used. Never '
+                'your habits, names or notes. You can change this in Settings.',
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    key: const Key('analytics-no'),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(44, 44),
+                    ),
+                    onPressed: () => consent.set(false),
+                    child: const Text('No thanks'),
                   ),
-                  onPressed: () => consent.set(true),
-                  child: const Text('Share'),
-                ),
-              ],
-            ),
-          ],
+                  FilledButton(
+                    key: const Key('analytics-yes'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(44, 44),
+                    ),
+                    onPressed: () => consent.set(true),
+                    child: const Text('Share'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

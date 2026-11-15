@@ -14,6 +14,7 @@ import '../notify/notification_sync.dart';
 import '../purchases/purchases.dart';
 import '../state/garden_controller.dart';
 import 'paywall.dart';
+import 'theme.dart';
 import 'toast.dart';
 
 class HabitForm extends ConsumerStatefulWidget {
@@ -207,94 +208,139 @@ class _HabitFormState extends ConsumerState<HabitForm> {
               if (_nameError) setState(() => _nameError = false);
             },
           ),
-          const SizedBox(height: 24),
-          Text('Pick a plant', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            children: [
-              for (final g in PlantGroup.values)
-                ChoiceChip(
-                  key: Key('plant-group-${g.name}'),
-                  label: Text(g.label),
-                  selected: g == _group,
-                  onSelected: (_) => setState(() => _group = g),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 124,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
+          const SizedBox(height: 16),
+          SectionCard(
+            title: 'Pick a plant',
+            padding: const EdgeInsets.fromLTRB(16, 16, 0, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (final p in plants)
-                  if (p.group == _group) _flowerChoice(p.id),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (final g in PlantGroup.values)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            key: Key('plant-group-${g.name}'),
+                            label: Text(g.label),
+                            selected: g == _group,
+                            showCheckmark: false,
+                            onSelected: (_) => setState(() => _group = g),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 118,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      for (final p in plants)
+                        if (p.group == _group) _flowerChoice(p.id),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
-          Text('How do you track it?', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          SegmentedButton<bool>(
-            key: const Key('type'),
-            showSelectedIcon: false,
-            segments: const [
-              ButtonSegment(
-                value: false,
-                label: Text('Yes or no', key: Key('type-yesno')),
-              ),
-              ButtonSegment(
-                value: true,
-                label: Text('A number', key: Key('type-number')),
-              ),
-            ],
-            selected: {_numeric},
-            onSelectionChanged: (s) => setState(() => _numeric = s.first),
-          ),
-          if (_numeric) ..._numberFields(),
-          const SizedBox(height: 24),
-          Text('How often?', style: theme.textTheme.titleMedium),
-          _scheduleTile(
-            const Key('schedule-daily'),
-            ScheduleKind.daily,
-            'Every day',
-          ),
-          _scheduleTile(
-            const Key('schedule-times'),
-            ScheduleKind.timesPerWeek,
-            'Times a week',
-          ),
-          if (_kind == ScheduleKind.timesPerWeek) _stepper(),
-          _scheduleTile(
-            const Key('schedule-weekday'),
-            ScheduleKind.weekday,
-            'One day a week',
-          ),
-          if (_kind == ScheduleKind.weekday) _weekdayChips(),
-          const SizedBox(height: 16),
-          SwitchListTile(
-            key: const Key('reminder-switch'),
-            title: const Text('Remind me'),
-            value: _remind,
-            onChanged: (v) {
-              setState(() => _remind = v);
-              if (v) _askPermission();
-            },
-          ),
-          if (_remind)
-            ListTile(
-              key: const Key('reminder-time'),
-              title: const Text('At'),
-              trailing: Text(
-                MaterialLocalizations.of(context).formatTimeOfDay(
-                  TimeOfDay(hour: _minutes ~/ 60, minute: _minutes % 60),
+          SectionCard(
+            title: 'How do you track it?',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SegmentedButton<bool>(
+                  key: const Key('type'),
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(
+                      value: false,
+                      label: Text('Yes or no', key: Key('type-yesno')),
+                    ),
+                    ButtonSegment(
+                      value: true,
+                      label: Text('A number', key: Key('type-number')),
+                    ),
+                  ],
+                  selected: {_numeric},
+                  onSelectionChanged: (s) => setState(() => _numeric = s.first),
                 ),
-                style: theme.textTheme.titleMedium,
-              ),
-              onTap: _pickTime,
+                if (_numeric) ..._numberFields(),
+              ],
             ),
-          const SizedBox(height: 24),
+          ),
+          SectionCard(
+            title: 'How often?',
+            child: Column(
+              children: [
+                // Equal widths and heights, whichever label wraps.
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _scheduleTile(
+                        const Key('schedule-daily'),
+                        ScheduleKind.daily,
+                        'Every day',
+                      ),
+                      const SizedBox(width: 8),
+                      _scheduleTile(
+                        const Key('schedule-times'),
+                        ScheduleKind.timesPerWeek,
+                        'Times a week',
+                      ),
+                      const SizedBox(width: 8),
+                      _scheduleTile(
+                        const Key('schedule-weekday'),
+                        ScheduleKind.weekday,
+                        'One day a week',
+                      ),
+                    ],
+                  ),
+                ),
+                if (_kind == ScheduleKind.timesPerWeek) ...[
+                  const SizedBox(height: 8),
+                  _stepper(),
+                ],
+                if (_kind == ScheduleKind.weekday) ...[
+                  const SizedBox(height: 12),
+                  _weekdayChips(),
+                ],
+              ],
+            ),
+          ),
+          SectionCard(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Column(
+              children: [
+                SwitchListTile(
+                  key: const Key('reminder-switch'),
+                  title: const Text('Remind me'),
+                  value: _remind,
+                  onChanged: (v) {
+                    setState(() => _remind = v);
+                    if (v) _askPermission();
+                  },
+                ),
+                if (_remind)
+                  ListTile(
+                    key: const Key('reminder-time'),
+                    title: const Text('At'),
+                    trailing: Text(
+                      MaterialLocalizations.of(context).formatTimeOfDay(
+                        TimeOfDay(hour: _minutes ~/ 60, minute: _minutes % 60),
+                      ),
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    onTap: _pickTime,
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
           FilledButton(
             key: const Key('save-button'),
             onPressed: _saving ? null : _save,
@@ -368,6 +414,7 @@ class _HabitFormState extends ConsumerState<HabitForm> {
     final selected = id == _flowerId;
     final name = plantOf(id)?.name ?? id;
     final scheme = Theme.of(context).colorScheme;
+    final accent = flowerColor(id, Theme.of(context).brightness);
     return Semantics(
       key: Key('flower-choice-$id'),
       button: true,
@@ -378,23 +425,25 @@ class _HabitFormState extends ConsumerState<HabitForm> {
       child: GestureDetector(
         onTap: () => setState(() => _flowerId = id),
         child: Container(
-          width: 92,
-          margin: const EdgeInsets.only(right: 10),
+          width: 88,
+          margin: const EdgeInsets.only(right: 8),
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: selected ? scheme.primary.withValues(alpha: 0.12) : null,
+            color: selected
+                ? accent.withValues(alpha: 0.16)
+                : scheme.surfaceContainerLowest,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: selected ? scheme.primary : scheme.outlineVariant,
-              width: selected ? 3 : 1,
+              color: selected ? accent : scheme.outlineVariant,
+              width: selected ? 2.5 : 1,
             ),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              FlowerView(look: pickerLook(id), size: 64),
+              FlowerView(look: pickerLook(id), size: 60),
               const SizedBox(height: 4),
-              Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+              FittedBox(fit: BoxFit.scaleDown, child: Text(name, maxLines: 1)),
             ],
           ),
         ),
@@ -404,14 +453,43 @@ class _HabitFormState extends ConsumerState<HabitForm> {
 
   Widget _scheduleTile(Key key, ScheduleKind kind, String title) {
     final selected = _kind == kind;
-    return ListTile(
-      key: key,
-      selected: selected,
-      leading: Icon(
-        selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+    final scheme = Theme.of(context).colorScheme;
+    return Expanded(
+      child: Semantics(
+        selected: selected,
+        child: Material(
+          key: key,
+          color: selected
+              ? scheme.primaryContainer
+              : scheme.surfaceContainerLowest,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: selected ? scheme.primary : scheme.outlineVariant,
+              width: selected ? 2 : 1,
+            ),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => setState(() => _kind = kind),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 56),
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Center(
+                  child: Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontWeight: selected ? FontWeight.w600 : null,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
-      title: Text(title),
-      onTap: () => setState(() => _kind = kind),
     );
   }
 

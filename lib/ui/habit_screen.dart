@@ -72,7 +72,8 @@ class _HabitScreenState extends ConsumerState<HabitScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
-          _Section(
+          SectionCard(
+            color: accentWash(color, theme.brightness),
             child: Row(
               children: [
                 ExcludeSemantics(
@@ -102,6 +103,7 @@ class _HabitScreenState extends ConsumerState<HabitScreen> {
                           value: s.growth,
                           minHeight: 8,
                           color: color,
+                          backgroundColor: color.withValues(alpha: 0.18),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -123,23 +125,27 @@ class _HabitScreenState extends ConsumerState<HabitScreen> {
             child: Row(
               children: [
                 ScoreRing(score: score, color: color),
-                const Spacer(),
-                _Figure(
-                  _change(score - scoreAt(t, today - 30)),
-                  'Month',
-                  key: const Key('change-month'),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _Figure(
+                    _change(score - scoreAt(t, today - 30)),
+                    'Month',
+                    key: const Key('change-month'),
+                  ),
                 ),
-                const Spacer(),
-                _Figure(
-                  _change(score - scoreAt(t, today - 365)),
-                  'Year',
-                  key: const Key('change-year'),
+                Expanded(
+                  child: _Figure(
+                    _change(score - scoreAt(t, today - 365)),
+                    'Year',
+                    key: const Key('change-year'),
+                  ),
                 ),
-                const Spacer(),
-                _Figure(
-                  '${s.totalCompletions}',
-                  'Total',
-                  key: const Key('total'),
+                Expanded(
+                  child: _Figure(
+                    '${s.totalCompletions}',
+                    'Total',
+                    key: const Key('total'),
+                  ),
                 ),
               ],
             ),
@@ -219,24 +225,7 @@ class _Section extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (title != null) ...[
-              Text(title!, style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 12),
-            ],
-            child,
-          ],
-        ),
-      ),
-    ),
-  );
+  Widget build(BuildContext context) => SectionCard(title: title, child: child);
 }
 
 class _Figure extends StatelessWidget {
@@ -377,7 +366,7 @@ class _MonthCalendarState extends ConsumerState<_MonthCalendar> {
       Mark.partial => color.withValues(alpha: 0.4),
       _ => Colors.transparent,
     };
-    final text = mark == Mark.met ? theme.colorScheme.onPrimary : null;
+    final text = mark == Mark.met ? onAccent(color) : null;
     final state = switch (mark) {
       Mark.met => 'done',
       Mark.partial => 'partly done',
@@ -408,9 +397,14 @@ class _MonthCalendarState extends ConsumerState<_MonthCalendar> {
               child: Text(
                 '$n',
                 style:
+                    // Done days are large bold text: mid-tone accents only
+                    // reach ~4:1 with either ink.
                     TextStyle(
                       color: text,
-                      fontWeight: day == widget.today ? FontWeight.w700 : null,
+                      fontSize: mark == Mark.met ? 18 : null,
+                      fontWeight: day == widget.today || mark == Mark.met
+                          ? FontWeight.w700
+                          : null,
                     ).copyWith(
                       color: enabled
                           ? text

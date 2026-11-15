@@ -9,6 +9,7 @@ import '../export/file_transfer.dart';
 import '../purchases/purchases.dart';
 import '../state/garden_controller.dart';
 import 'paywall.dart';
+import 'theme.dart';
 import 'toast.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -122,34 +123,39 @@ class SettingsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
-          if (unlocked)
-            const ListTile(
-              key: Key('unlock-status'),
-              leading: Icon(Icons.verified_outlined),
-              title: Text('Garden is unlocked'),
-              subtitle: Text('Thank you. It is yours for good.'),
-            )
-          else
-            ListTile(
-              key: const Key('unlock-tile'),
-              leading: const Icon(Icons.lock_open_outlined),
-              title: const Text('Unlock Garden'),
-              subtitle: Text(
-                'One payment, ${ref.read(purchasesProvider).priceLabel}',
+          _Group(
+            color: unlocked ? null : theme.colorScheme.tertiaryContainer,
+            children: [
+              if (unlocked)
+                const ListTile(
+                  key: Key('unlock-status'),
+                  leading: Icon(Icons.verified_outlined),
+                  title: Text('Garden is unlocked'),
+                  subtitle: Text('Thank you. It is yours for good.'),
+                )
+              else
+                ListTile(
+                  key: const Key('unlock-tile'),
+                  leading: const Icon(Icons.lock_open_outlined),
+                  title: const Text('Unlock Garden'),
+                  subtitle: Text(
+                    'One payment, ${ref.read(purchasesProvider).priceLabel}',
+                  ),
+                  onTap: () => showPaywall(context, ref),
+                ),
+              ListTile(
+                key: const Key('restore-tile'),
+                leading: const Icon(Icons.restore),
+                title: const Text('Restore purchase'),
+                onTap: () => _restorePurchase(context, ref),
               ),
-              onTap: () => showPaywall(context, ref),
-            ),
-          ListTile(
-            key: const Key('restore-tile'),
-            leading: const Icon(Icons.restore),
-            title: const Text('Restore purchase'),
-            onTap: () => _restorePurchase(context, ref),
+            ],
           ),
-          const Divider(),
           _Header('Your data'),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
             child: Text(
               'Garden keeps everything on this phone. Your phone\'s own backup '
               '(Google or iCloud) usually moves it to a new phone for you. To '
@@ -158,43 +164,52 @@ class SettingsScreen extends ConsumerWidget {
               style: theme.textTheme.bodySmall,
             ),
           ),
-          ListTile(
-            key: const Key('export-csv'),
-            leading: const Icon(Icons.table_chart_outlined),
-            title: const Text('Export as CSV'),
-            subtitle: const Text('For spreadsheets: every day of every habit'),
-            trailing: lock,
-            onTap: () => _exportCsv(context, ref),
+          _Group(
+            children: [
+              ListTile(
+                key: const Key('export-csv'),
+                leading: const Icon(Icons.table_chart_outlined),
+                title: const Text('Export as CSV'),
+                subtitle: const Text(
+                  'For spreadsheets: every day of every habit',
+                ),
+                trailing: lock,
+                onTap: () => _exportCsv(context, ref),
+              ),
+              ListTile(
+                key: const Key('backup'),
+                leading: const Icon(Icons.save_alt_outlined),
+                title: const Text('Back up to a file'),
+                subtitle: const Text(
+                  'Everything, to restore on this or a new phone',
+                ),
+                trailing: lock,
+                onTap: () => _backup(context, ref),
+              ),
+              ListTile(
+                key: const Key('restore-backup'),
+                leading: const Icon(Icons.upload_file_outlined),
+                title: const Text('Restore from a backup'),
+                trailing: lock,
+                onTap: () => _restoreBackup(context, ref),
+              ),
+            ],
           ),
-          ListTile(
-            key: const Key('backup'),
-            leading: const Icon(Icons.save_alt_outlined),
-            title: const Text('Back up to a file'),
-            subtitle: const Text(
-              'Everything, to restore on this or a new phone',
-            ),
-            trailing: lock,
-            onTap: () => _backup(context, ref),
-          ),
-          ListTile(
-            key: const Key('restore-backup'),
-            leading: const Icon(Icons.upload_file_outlined),
-            title: const Text('Restore from a backup'),
-            trailing: lock,
-            onTap: () => _restoreBackup(context, ref),
-          ),
-          const Divider(),
           _Header('Privacy'),
-          SwitchListTile(
-            key: const Key('analytics-switch'),
-            title: const Text('Share anonymous usage'),
-            subtitle: const Text(
-              'Counts only, like which screens get used. Never your habits, '
-              'names or notes.',
-            ),
-            value: consent,
-            onChanged: (v) =>
-                ref.read(analyticsConsentProvider.notifier).set(v),
+          _Group(
+            children: [
+              SwitchListTile(
+                key: const Key('analytics-switch'),
+                title: const Text('Share anonymous usage'),
+                subtitle: const Text(
+                  'Counts only, like which screens get used. Never your habits, '
+                  'names or notes.',
+                ),
+                value: consent,
+                onChanged: (v) =>
+                    ref.read(analyticsConsentProvider.notifier).set(v),
+              ),
+            ],
           ),
         ],
       ),
@@ -208,7 +223,28 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+    padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
     child: Text(text, style: Theme.of(context).textTheme.titleMedium),
+  );
+}
+
+/// Related settings on one card, split by thin lines.
+class _Group extends StatelessWidget {
+  const _Group({required this.children, this.color});
+  final List<Widget> children;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) => SectionCard(
+    color: color,
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Column(
+      children: [
+        for (var i = 0; i < children.length; i++) ...[
+          if (i > 0) const Divider(indent: 56),
+          children[i],
+        ],
+      ],
+    ),
   );
 }

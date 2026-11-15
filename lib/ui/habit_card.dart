@@ -100,68 +100,66 @@ class HabitCard extends ConsumerWidget {
     final look = lookOf(c.flowerId, s, doneToday: done);
     final theme = Theme.of(context);
     return Card(
+      color: accentWash(color, theme.brightness),
       child: InkWell(
         key: Key('card-${c.id}'),
         borderRadius: BorderRadius.circular(20),
         onTap: onOpen,
         child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
+          padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  _LogButton(
-                    key: Key('log-${c.id}'),
-                    habit: habit,
-                    today: today,
-                    color: color,
-                    done: done,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          c.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleMedium,
-                        ),
-                        Text(
-                          statusLine(habit, s),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withValues(
-                              alpha: 0.7,
-                            ),
-                          ),
-                        ),
-                        if (progressLine(habit, today) case final p?)
-                          Text(
-                            p,
-                            key: Key('progress-${c.id}'),
-                            style: theme.textTheme.bodySmall,
-                          ),
-                      ],
-                    ),
-                  ),
-                  ExcludeSemantics(
-                    child: FlowerView(
-                      look: look,
-                      size: 64,
-                      seed: stableHash(c.id),
-                      delightTrigger: (v ?? 0).round(),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              HeatStrip(
-                marks: marksOf(habit, s),
+              _LogButton(
+                key: Key('log-${c.id}'),
+                habit: habit,
                 today: today,
-                createdDay: c.createdDay,
                 color: color,
+                done: done,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      c.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    Text(
+                      statusLine(habit, s),
+                      maxLines: 2,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    if (progressLine(habit, today) case final p?)
+                      Text(
+                        p,
+                        key: Key('progress-${c.id}'),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    const SizedBox(height: 10),
+                    HeatStrip(
+                      marks: marksOf(habit, s),
+                      today: today,
+                      createdDay: c.createdDay,
+                      color: color,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              ExcludeSemantics(
+                child: FlowerView(
+                  look: look,
+                  size: 60,
+                  seed: stableHash(c.id),
+                  delightTrigger: (v ?? 0).round(),
+                ),
               ),
             ],
           ),
@@ -190,7 +188,8 @@ class _LogButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = habit.config;
     final v = habit.log[today] ?? 0;
-    final onColor = Theme.of(context).colorScheme.onPrimary;
+    final onColor = onAccent(color);
+    final idle = Theme.of(context).colorScheme.surfaceContainerLowest;
     return Semantics(
       button: true,
       label: logLabel(habit, today),
@@ -201,7 +200,7 @@ class _LogButton extends ConsumerWidget {
         width: 48,
         height: 48,
         child: Material(
-          color: done ? color : Colors.transparent,
+          color: done ? color : idle,
           shape: CircleBorder(side: BorderSide(color: color, width: 2)),
           child: InkWell(
             customBorder: const CircleBorder(),
@@ -213,11 +212,22 @@ class _LogButton extends ConsumerWidget {
                       done ? Icons.check : Icons.add,
                       color: done ? onColor : color,
                     )
-                  : Text(
-                      formatNum(v),
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: done ? onColor : color,
+                  // Large text: mid-tone accents only reach ~4:1.
+                  : Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: FittedBox(
+                        child: Text(
+                          formatNum(v),
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            // Pale accents fail on white, so the open count
+                            // uses ink and the ring carries the colour.
+                            color: done
+                                ? onColor
+                                : Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
                       ),
                     ),
             ),
