@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_pick">Pick a habit</string>
+    <string name="widget_no_habits">Add a habit in Garden first</string>
+    <string name="widget_empty">Add a habit in Garden</string>
+    <string name="widget_single_desc">Water one habit with a tap</string>
+    <string name="widget_row_desc">Water your habits with a tap</string>
+    <string name="widget_prev">Previous habits</string>
+    <string name="widget_next">Next habits</string>
+</resources>
