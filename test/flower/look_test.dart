@@ -52,8 +52,14 @@ void main() {
   });
 
   test('decline beats a fresh start', () {
-    expect(lookOf(_h(step: 3, fresh: _today), _today).face, Face.sad);
-    expect(lookOf(_h(step: 2, fresh: _today), _today).face, Face.worried);
+    expect(
+      lookOf(_h(step: 3, fresh: _today, dry: true), _today).face,
+      Face.sad,
+    );
+    expect(
+      lookOf(_h(step: 2, fresh: _today, dry: true), _today).face,
+      Face.worried,
+    );
   });
 
   test('fresh start: hopeful, and still shows it is due', () {
@@ -62,16 +68,33 @@ void main() {
   });
 
   test('hopeful ends once the flower is thirsty again', () {
-    expect(lookOf(_h(fresh: 99, step: 1), _today).face, Face.expectant);
+    expect(
+      lookOf(_h(fresh: 99, step: 1, dry: true), _today).face,
+      Face.expectant,
+    );
   });
 
   test('a fresh-start day in the future (clock moved back) still works', () {
     expect(lookOf(_h(fresh: _today + 5), _today).face, Face.hopeful);
   });
 
-  test('thirsty: expectant with the bubble even when watered today', () {
-    final l = lookOf(_h(step: 1), _today);
+  test('thirsty and not yet watered today: expectant with the bubble', () {
+    final l = lookOf(
+      _h(step: 1, dry: true, schedule: Schedule.weekday(3)),
+      _today,
+    );
     expect((l.face, l.bubble), (Face.expectant, true));
+  });
+
+  test('watered today: a declining flower looks hopeful, with no bubble', () {
+    for (final (step, pose) in [
+      (1, Pose.upright),
+      (2, Pose.droop),
+      (3, Pose.slump),
+    ]) {
+      final l = lookOf(_h(step: step), _today);
+      expect((l.face, l.pose, l.bubble), (Face.hopeful, pose, false));
+    }
   });
 
   test('due today: expectant with the bubble', () {

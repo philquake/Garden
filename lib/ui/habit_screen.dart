@@ -29,6 +29,10 @@ class HabitScreen extends ConsumerStatefulWidget {
 class _HabitScreenState extends ConsumerState<HabitScreen> {
   int _waterTaps = 0;
 
+  // WaterEffect re-parents the flower while it plays; a global key keeps the
+  // flower's animation state across that.
+  final _flowerKey = GlobalKey();
+
   /// Runs [action]; on any failure refreshes the garden and says so gently.
   /// Returns whether it succeeded.
   Future<bool> _attempt(Future<void> Function() action) async {
@@ -120,6 +124,7 @@ class _HabitScreenState extends ConsumerState<HabitScreen> {
                               trigger: _waterTaps,
                               random: ref.read(waterRandomProvider),
                               child: FlowerView(
+                                key: _flowerKey,
                                 look: lookOf(h, today),
                                 size: 240,
                                 seed: stableHash(h.id),

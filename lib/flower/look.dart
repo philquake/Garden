@@ -73,25 +73,39 @@ const _stageFaces = [
   Face.grin,
 ];
 
-/// The look for [h] on [today]. First match wins: lost, petal loss, wilting,
-/// fresh start, wants water, then the growth stage's own face.
+/// The look for [h] on [today]. First match wins: lost, watered today while
+/// recovering, petal loss, wilting, fresh start, wants water, then the growth
+/// stage's own face.
 FlowerLook lookOf(Habit h, int today) {
   final kind = _kind(h.flowerId);
   if (h.lost) {
     return FlowerLook(kind: kind, stage: 0, face: Face.asleep, faded: true);
   }
   final stage = displayStage(h);
-  final wantsWater = needsWaterToday(h, today) || h.declineStep >= 1;
-  final (face, pose) = switch (h.declineStep) {
-    >= 3 => (Face.sad, Pose.slump),
-    2 => (Face.worried, Pose.droop),
-    _ when h.declineStep <= 0 && h.freshStartDay >= 0 => (
-      Face.hopeful,
-      Pose.upright,
-    ),
-    _ when wantsWater => (Face.expectant, Pose.upright),
-    _ => (_stageFaces[stage], Pose.upright),
-  };
+  final step = h.declineStep;
+  // Nothing more can be done today once it is watered, so the pang ends: the
+  // body still shows the decline, the face looks up, and the bubble goes.
+  final watered = h.wateredDays.contains(today);
+  final wantsWater = !watered && (needsWaterToday(h, today) || step >= 1);
+  final pose = step >= 3
+      ? Pose.slump
+      : step == 2
+      ? Pose.droop
+      : Pose.upright;
+  final Face face;
+  if (watered && step >= 1) {
+    face = Face.hopeful;
+  } else if (step >= 3) {
+    face = Face.sad;
+  } else if (step == 2) {
+    face = Face.worried;
+  } else if (step <= 0 && h.freshStartDay >= 0) {
+    face = Face.hopeful;
+  } else if (wantsWater) {
+    face = Face.expectant;
+  } else {
+    face = _stageFaces[stage];
+  }
   return FlowerLook(
     kind: kind,
     stage: stage,

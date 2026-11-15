@@ -129,10 +129,14 @@ void main() {
       final haptics = _haptics(tester);
       await _pump(tester, [_h('h1')], screen());
       final before = _view(tester, key).delightTrigger;
+      final state = tester.state(find.byType(FlowerView));
       await tester.tap(find.byKey(key));
       await tester.pump(const Duration(milliseconds: 100));
       expect(_view(tester, key).delightTrigger, before + 1);
       expect(_view(tester, key).look.bubble, isFalse);
+      // The water effect re-parents the flower; it must keep its animation
+      // state or the reaction never plays.
+      expect(tester.state(find.byType(FlowerView)), same(state));
       expect(haptics, ['HapticFeedbackType.lightImpact']);
       await tester.pump(const Duration(seconds: 2));
       // An already-watered flower still reacts.
